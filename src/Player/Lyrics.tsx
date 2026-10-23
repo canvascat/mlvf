@@ -6,6 +6,7 @@ import {
 import type { CSSProperties, FC } from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
+import { isLyricTimeSeek } from "./lyric-clock";
 
 export const Lyrics: FC<{
   lyricLines: LyricLine[];
@@ -31,13 +32,14 @@ export const Lyrics: FC<{
     corePlayerRef.current = player;
 
     const current = rendererPropsRef.current;
+    player.setEnableAutoSeekDetection(false);
     player.setAlignAnchor("center");
     player.setEnableSpring(true);
     player.setEnableScale(true);
     player.setEnableBlur(true);
     player.setAlignPosition(current.alignPosition);
     player.setLyricLines(current.lyricLines, current.currentTimeMs);
-    player.setCurrentTime(current.currentTimeMs, true);
+    player.setCurrentTime(current.currentTimeMs, false);
     player.resume();
     player.update();
     wrapperRef.current?.appendChild(player.getElement());
@@ -68,8 +70,10 @@ export const Lyrics: FC<{
     if (!player) {
       return;
     }
-    player.setCurrentTime(currentTimeMs, true);
+    const isSeek = isLyricTimeSeek(currentTimeRef.current, currentTimeMs);
+    player.setCurrentTime(currentTimeMs, isSeek);
     currentTimeRef.current = currentTimeMs;
+    player.update(0);
   }, [currentTimeMs]);
 
   useEffect(() => {
@@ -86,8 +90,10 @@ export const Lyrics: FC<{
       if (lastTime === -1) {
         lastTime = time;
       }
-      player.update(time - lastTime);
+      const delta = time - lastTime;
       lastTime = time;
+      player.setCurrentTime(currentTimeRef.current, false);
+      player.update(delta);
       requestAnimationFrame(onFrame);
     };
     player.calcLayout(LayoutReason.ConfigChange);
