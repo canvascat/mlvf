@@ -135,23 +135,91 @@ export function parseLyricText(raw: string, format: LyricFormat): LyricLine[] {
   }
   const parsed = sanitizeLyricTimestamps(lines.map(mapLyric));
   if (format === "qrc") {
-    return attachQrcAnnotations(parsed, {
-      translations: parsedLines(bundle.translation, "lrc"),
-      romans: parsedLines(bundle.roman, "qrc"),
-      kana: extractKanaTag(body),
-    });
+    return applyDuetSections(
+      attachQrcAnnotations(parsed, {
+        translations: parsedLines(bundle.translation, "lrc"),
+        romans: parsedLines(bundle.roman, "qrc"),
+        kana: extractKanaTag(body),
+      }),
+    );
   }
   if (
     (format === "lrc" || format === "yrc") &&
     bundle.translation.trim()
   ) {
-    return attachQrcAnnotations(parsed, {
-      translations: parsedLines(bundle.translation, "lrc"),
-      romans: [],
-      kana: "",
+    return applyDuetSections(
+      attachQrcAnnotations(parsed, {
+        translations: parsedLines(bundle.translation, "lrc"),
+        romans: [],
+        kana: "",
+      }),
+    );
+  }
+  return applyDuetSections(parsed);
+}
+
+const DUET_SPEAKER =
+  /^(?:男声|女声|合唱|男|女|合|方|徐)$/;
+
+function isBlankWord(word: string): boolean {
+  return word.trim().length === 0;
+}
+
+function isColonWord(word: string): boolean {
+  return /^[：:]+$/.test(word.trim());
+}
+
+function speakerPrefixLength(words: LyricLine["words"]): number {
+  let index = 0;
+  while (index < words.length && isBlankWord(words[index]?.word ?? "")) {
+    index += 1;
+  }
+  const token = (words[index]?.word ?? "").trim();
+  const named = token.match(/^(男声|女声|合唱|男|女|合|方|徐)[：:]$/);
+  if (named) {
+    return index + 1;
+  }
+  if (!DUET_SPEAKER.test(token)) {
+    return 0;
+  }
+  let colon = index + 1;
+  while (colon < words.length && isBlankWord(words[colon]?.word ?? "")) {
+    colon += 1;
+  }
+  if (colon < words.length && isColonWord(words[colon]?.word ?? "")) {
+    return colon + 1;
+  }
+  return 0;
+}
+
+/**
+ * 对唱行首的「方：」「徐：」「男：」「女：」「合：」只用来分段。
+ * 去掉标记后，第一段靠左，之后左右交替。
+ */
+export function applyDuetSections(lines: readonly LyricLine[]): LyricLine[] {
+  let section = 0;
+  const result: LyricLine[] = [];
+  for (const line of lines) {
+    const prefix = speakerPrefixLength(line.words);
+    const words = prefix > 0 ? line.words.slice(prefix) : line.words;
+    if (prefix > 0) {
+      section += 1;
+    }
+    const visible = words.some((word) => !isBlankWord(word.word));
+    if (!visible) {
+      continue;
+    }
+    const first = words[0];
+    const last = words[words.length - 1];
+    result.push({
+      ...line,
+      words,
+      startTime: first?.startTime ?? line.startTime,
+      endTime: last?.endTime ?? line.endTime,
+      isDuet: section === 0 ? line.isDuet : section % 2 === 0,
     });
   }
-  return parsed;
+  return result;
 }
 
 export function shiftLyricLines(

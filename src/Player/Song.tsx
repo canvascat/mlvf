@@ -24,6 +24,7 @@ export const SongPlayer: React.FC<TrackProps> = ({
   const audioSrc = resolvePublicAsset(audioFileUrl);
   const coverSrc = resolvePublicAsset(coverImageUrl);
   const audioOffsetInFrames = Math.round(audioOffsetInSeconds * fps);
+  const hasLyric = lyricLines.length > 0;
   const { delayRender, continueRender } = useDelayRender();
   const [handle] = useState(() => delayRender("amll-player-ready"));
   const coverRef = useRef<HTMLDivElement>(null);
@@ -84,7 +85,7 @@ export const SongPlayer: React.FC<TrackProps> = ({
           <PlayerBackground
             audioSrc={audioSrc}
             coverUrl={coverSrc}
-            hasLyric={lyricLines.length > 0}
+            hasLyric={hasLyric}
             motion={backgroundMotion}
           />
           <div
@@ -114,8 +115,8 @@ export const SongPlayer: React.FC<TrackProps> = ({
             display: "grid",
             width: "100%",
             height: "100%",
-            gridTemplateColumns: "0.45fr 0.55fr",
-            gap: "0.5rem",
+            gridTemplateColumns: hasLyric ? "0.45fr 0.55fr" : "1fr",
+            gap: hasLyric ? "0.5rem" : 0,
           }}
         >
           <div
@@ -145,21 +146,23 @@ export const SongPlayer: React.FC<TrackProps> = ({
               albumName={albumName}
             />
           </div>
-          <div
-            ref={lyricRef}
-            style={{
-              boxSizing: "border-box",
-              width: "100%",
-              height: "100%",
-              contain: "paint",
-              paddingRight: "15%",
-              mixBlendMode: "plus-lighter",
-              maskImage:
-                "linear-gradient(transparent, black 10%, black 90%, transparent)",
-            }}
-          >
-            <Lyrics lyricLines={lyricLines} alignPosition={alignPosition} />
-          </div>
+          {hasLyric ? (
+            <div
+              ref={lyricRef}
+              style={{
+                boxSizing: "border-box",
+                width: "100%",
+                height: "100%",
+                contain: "paint",
+                paddingRight: "15%",
+                mixBlendMode: "plus-lighter",
+                maskImage:
+                  "linear-gradient(transparent, black 10%, black 90%, transparent)",
+              }}
+            >
+              <Lyrics lyricLines={lyricLines} alignPosition={alignPosition} />
+            </div>
+          ) : null}
         </div>
       </div>
     </AbsoluteFill>
