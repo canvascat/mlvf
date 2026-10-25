@@ -63,3 +63,23 @@ Hi-Res：
 - 动态用 `biliup upload --dynamic`，内容用这一期的标题。
 - 单次投稿必须带动态。
 - 专辑批量串行投稿时只给其中一条带动态，写明这是整张专辑；其余稿件不要带 `--dynamic`。
+
+成片先入队：
+
+- 视频做完后，用户没有明确说现在上传，就不要投稿。把待传条目写入 `tmp/upload-queue.json`，做完告诉用户已入队、会在空闲时再传。
+- 用户明确说现在上传、马上投稿或传上去时，立刻按队列传，不必等空闲。
+- 用户明确说不要上传时，不入队，也不传。
+- 同一条成片已在队列里且 `status` 仍是 `pending` 时，更新原来那条，不要再加一条。用成片路径区分；覆盖已有稿件时也可以用 `bvid` 区分。
+
+空闲再传：
+
+- 满足任一条件再开始传 `status` 为 `pending` 的条目：本地时间在凌晨 00:00–05:59，或屏幕已连续锁定满 10 分钟。
+- 锁屏看 `ioreg -n Root -d1` 里有没有 `CGSSessionScreenIsLocked` 且值为 `Yes`。没有这一项就是未锁定。第一次发现锁定只把 `locked_since` 写成当时的时间，先不传。下次仍锁定且距 `locked_since` 已满 10 分钟再传。解锁后把 `locked_since` 清成 `null`。
+- 一次只传一条。上一条成功后再等至少 180 秒。出现 21566 先等够间隔，重试刚才那一条。出现 137022 时把 `hold_until` 写成次日 00:00，剩下的留在队列里，并告诉用户。`hold_until` 还没到时不要开传。
+
+两种投稿，写在条目的 `mode` 里：
+
+- `first`：没有已有稿件。用 `biliup upload --submit web` 新投。标题、简介、标签、封面、分区、版权、动态、Hi-Res 写在 `upload` 里。专辑批量只给其中一条写 `dynamic`。知道要进的合集小节时，把 `season_id` 和 `section_id` 一并写上，投稿成功后再加入合集。
+- `overwrite`：覆盖已有稿件，必须带 `bvid`。先 `biliup append --submit web --vid <bvid>` 把成片追加成分 P，再用 `member.bilibili.com/x/vu/web/edit` 只留下新的分 P，分 P 标题沿用原来的，稿件号不变。不要另外 `upload` 出一条新稿。
+
+队列文件不存在时建成 `{ "locked_since": null, "hold_until": null, "items": [] }`。每条至少有 `id`、`mode`、`status`、`video`、`title`、`created`。`status` 用 `pending` 或 `done`。传完写成 `done`，并写上 `finished` 和稿件号。

@@ -67,3 +67,7 @@ nub run export -- "预处理/<源目录名>/02 歌名.json" --out "out/<源目�
 ```
 
 `<歌手>` 和 `<歌名>` 用 json 里的 `artistName`、`songName`。已有成片且用户没说重导，就从缺的那首接着串。用户说画面有问题或要重导，再覆盖已有文件。
+
+## 导出之后
+
+成片写完按 `AGENTS.md` 的投稿队列处理。用户这次没有明确说现在上传，就把每条写入 `tmp/upload-queue.json`，先不投稿。已有稿件号的记 `mode: overwrite` 并写上 `bvid`；没有稿件号的记 `mode: first`，并把投稿用的标题、简介、标签、封面、分区、版权和动态写进 `upload`。
