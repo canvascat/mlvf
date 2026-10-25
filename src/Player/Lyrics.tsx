@@ -5,7 +5,7 @@ import {
 } from "@applemusic-like-lyrics/core";
 import type { CSSProperties, FC } from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { useCurrentFrame, useVideoConfig } from "remotion";
+import { getRemotionEnvironment, useCurrentFrame, useVideoConfig } from "remotion";
 import { isLyricTimeSeek } from "./lyric-clock";
 
 export const Lyrics: FC<{
@@ -32,6 +32,13 @@ export const Lyrics: FC<{
     corePlayerRef.current = player;
 
     const current = rendererPropsRef.current;
+    // 逐词点亮默认用 Web Animations，按物理时间自己往前走。
+    // 预览是实时播放，所以和声音对齐；导出每一帧都要比歌曲时间慢很多，
+    // 截图时一句的进度已经跑完，只剩第一个字还卡在该响的位置。
+    // 关掉这条路径后，遮罩改为读取歌曲时间，截哪一帧就是那一帧的字。
+    if (getRemotionEnvironment().isRendering) {
+      Object.assign(player, { supportMaskImage: false });
+    }
     player.setEnableAutoSeekDetection(false);
     player.setAlignAnchor("center");
     player.setEnableSpring(true);
