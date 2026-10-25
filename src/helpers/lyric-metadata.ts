@@ -131,6 +131,12 @@ const ROLE_ATOMS = [
   "古筝",
   "古箏",
   "笛子",
+  "乐器",
+  "樂器",
+  "编辑",
+  "編輯",
+  "处理",
+  "處理",
   "唢呐",
   "嗩吶",
   "竖琴",
@@ -197,6 +203,11 @@ const ROLE_MODIFIERS = [
   "执行",
   "联合",
   "聯合",
+  "所有",
+  "数字",
+  "數字",
+  "后期",
+  "後期",
   "首席",
   "客座",
   "前奏",
@@ -226,6 +237,8 @@ const ROLE_MODIFIERS = [
   "九",
   "十",
 ];
+
+const ROLE_JOINERS = ["and", "和", "与", "與", "及"];
 
 const SPOKEN = /[我你他她它的了吗呢吧啊不没爱在是有这那就都也还会要想说把被让给与和又很太最]/;
 
@@ -344,6 +357,13 @@ function isCreditRoleKey(raw: string): boolean {
     const modifier = ROLE_MODIFIERS.find((item) => rest.startsWith(item));
     if (modifier) {
       rest = rest.slice(modifier.length);
+      continue;
+    }
+    const joiner = sawAtom
+      ? ROLE_JOINERS.find((item) => rest.startsWith(item))
+      : undefined;
+    if (joiner && rest.length > joiner.length) {
+      rest = rest.slice(joiner.length);
       continue;
     }
     return false;

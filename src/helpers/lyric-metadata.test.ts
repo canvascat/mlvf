@@ -99,6 +99,25 @@ test("去掉结尾的演奏名单，保留对白和合唱标记", () => {
   ]);
 });
 
+test("去掉开头用和连接的制作署名和母带处理", () => {
+  const cleaned = stripLyricMetadata(
+    [
+      line("江湖中人 - 方大同"),
+      line("曲：方大同"),
+      line("词：方大同"),
+      line("制作和编曲：方大同"),
+      line("所有乐器和编程：Soulboy"),
+      line("数字编辑：Jeff Li"),
+      line("混音：Eric Lau"),
+      line("母带处理：Randy Merrill@Sterling Sound"),
+      line("帽子落在他下巴"),
+      line("桌面卧着剑一把"),
+    ],
+    { title: "江湖中人", artists: "方大同" },
+  );
+  assert.deepEqual(texts(cleaned), ["帽子落在他下巴", "桌面卧着剑一把"]);
+});
+
 test("角色词只是前缀时保留歌词", () => {
   const cleaned = stripLyricMetadata([
     line("词汇：还没到"),
