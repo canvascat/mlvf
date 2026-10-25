@@ -1,13 +1,21 @@
 ---
 name: biliup
-description: Use the biliup command-line tool to start the WebUI server, run recording tasks from config files, inspect help, and operate common upload/download commands.
+description: Use the biliup CLI (biliup-cli 1.2.11) to log in, upload, append, list, download, run the WebUI or Fleet controller, and manage seasons. There is no upload bandwidth cap; --limit is chunk concurrency.
 ---
 
 # biliup
 
-Use this skill when the user wants to install or operate the `biliup` command-line tool.
+Use this skill when the user wants to install or operate the `biliup` command-line tool. Behavior below matches `biliup-cli 1.2.11`. If a flag is not listed here, run `biliup <command> --help` instead of guessing.
 
-`biliup` can start the WebUI server, run recording tasks from config files, log in, upload videos, append videos, inspect video information, download videos, list uploaded videos, and manage the user's collections (合集).
+`biliup` can log in, upload videos, append a part to an existing archive, inspect or list videos, download videos, start the WebUI, join a Fleet controller, and manage the user's collections (合集).
+
+Global options:
+
+- `-u` / `--user-cookie` is the login file. The CLI default is `cookies.json` in the working directory. On this machine the saved login is `~/.config/biliup/cookies.json`; pass `-u` with that path when generating commands here.
+- `-p` / `--proxy` sets a proxy.
+- `--rust-log` sets the log filter.
+
+Do not print cookie values.
 
 ## Install flow
 
@@ -104,21 +112,68 @@ Then verify:
 biliup --help
 ```
 
-## Operation flow
+## Upload
 
-When the user asks to start the WebUI server with authentication, use:
+`upload` posts a new archive. `append --vid <BV or av>` adds another part to an existing archive. Append does not replace the existing part.
+
+This repo does not upload a finished video unless the user explicitly asked to upload it now. Otherwise append one item to `tmp/upload-queue.json` and leave it `pending`. Drain that queue only in the idle window in `AGENTS.md`: local time 00:00–05:59, or the screen locked for 10 minutes. In that window, publish drafts before `pending` items. `mode` is `first` or `overwrite`.
+
+- `first` runs `biliup upload --submit web` with the `upload` object saved on the item (title, desc, tag, cover, tid, copyright, dynamic, hires). One album batch stores `--dynamic` on a single item.
+- `overwrite` keeps the existing BV. `show` the archive, `append --submit web --vid <bvid>` the new file, then `POST https://member.bilibili.com/x/vu/web/edit` with the previous studio fields and `videos` set to only the new part. Keep the old part title. Confirm with `show` that the only remaining cid is the new one. Do not `upload` a second archive for the same song.
+
+This repo's uploads must use `--submit web`. Without `--submit`, the CLI uses the app submit path. `--submit` also accepts `app` and `b-cut-android`.
+
+There is no bandwidth cap. `--limit` is how many chunks of one file upload at once (default 3). `--limit 1` uploads one chunk at a time and is slower, but it is not a fixed Mbps limit. `--line` picks an upload line (`bldsa`, `tx`, `bda2`, `akbd`, `estx`, and the other names from `biliup upload --help`).
+
+A probe warning that `*.bilivideo.com` certificate is expired (`-67818`), or that the `bldsa` line was skipped, is not a failed upload. Skip that line and keep going. Do not treat the word `Error` inside that TLS warning as a failed submit.
+
+A post succeeded only when the process exits 0, the output contains `Web 接口投稿成功`, and it contains a BV id. The file can finish uploading and the checkpoint can be deleted before submit fails. That run did not create an archive. Retrying uploads the file again.
+
+Rate limits:
+
+- `21566` or the text `投稿过于频繁` on that code: wait at least 180 seconds, then retry the same upload. Do not start the next video. Match `21566` only as its own number; a file size can contain those digits.
+- `137022` with `投稿过于频繁，请稍后再试` is a longer block. Waiting 6 minutes and retrying still failed across six attempts in one session, and each retry uploaded the file again. Stop and tell the user. Do not keep re-uploading on `137022`.
+- This repo's batch of new archives already waits 180 seconds. If that submit still returns `21566`, `137022`, or `投稿过于频繁`, save that video and the rest of the batch as drafts instead of running `biliup upload` again. `overwrite` does not use drafts. The draft box holds at most 30; count them with `GET https://member.bilibili.com/x/vupre/web/draft/list?pn=1&ps=30` (`data` is the array) and stop when `30 - count` is used up. Do not delete existing drafts. Save one at a time with `POST https://member.bilibili.com/x/vupre/web/draft/add?csrf=` and the same JSON as a web submit, at least 3 seconds after the previous success. Reuse `filename` and `cid` from the upload that already finished. Mark the queue item `draft` with `draft_id`. Do not publish those drafts in the same batch. On the next idle window, publish drafts first: `GET https://member.bilibili.com/x/vupre/web/draft/view?id=<draft_id>`, then `POST https://member.bilibili.com/x/vu/web/add/v3?csrf=` with the returned `videos` (`filename` and `cid` are already there). After a BV comes back, `POST https://member.bilibili.com/x/vupre/web/draft/delete?csrf=` and mark the queue item `done`. If publishing a draft is rate-limited, stop the idle drain and leave the remaining drafts in the box.
+
+Other upload flags worth passing explicitly: `--copyright` (1 original, 2 repost), `--tid` (CLI default is 171; this repo uses 130 for music), `--cover`, `--title`, `--desc`, `--tag` (comma-separated), `--dynamic`, `--hires` (0 or 1), `--dolby`, `--no-reprint`, `--dtime` (10-digit timestamp, at least 4 hours ahead).
+
+## Collections
+
+`season` reads the cookie file. Run `biliup login` first if it does not exist. Add `--json` for machine-readable output. `sections` and `show` print a log line before the JSON; parse from the first `{`.
+
+```bash
+biliup -u ~/.config/biliup/cookies.json season list --json
+biliup -u ~/.config/biliup/cookies.json season sections <season_id> --json
+biliup -u ~/.config/biliup/cookies.json season add <section_id> --vid <BV or av>
+biliup -u ~/.config/biliup/cookies.json season remove <episode_id>
+biliup -u ~/.config/biliup/cookies.json season sort <section_id> --season-id <season_id> <episode_id>...
+```
+
+`list` shows season and section IDs. `sections` shows each episode's `episode_id` (not the aid), which `remove` and `sort` take. `add` looks up the cid and title and accepts `--vid` more than once. `sort` moves the listed episodes to the front in the given order and keeps the rest. `--reverse` reverses the whole section. Pass `--season-id` when the section payload has no season id.
+
+The CLI cannot create a season, switch grouping on, rename a section, or delete an archive.
+
+Write operations on a season need a gap. Wait at least 3 seconds after a successful season write before the next one. `20111` and `256000` mean edits are too frequent: wait tens of seconds and retry that same call. `20081` (a type-1 正片 group already exists) and `20092` (too many sections) are not rate limits.
+
+A newly submitted video often returns archive-view `-404` / `啥都木有` for several minutes. Retry that season add; do not treat it as a permanent failure.
+
+## Server, users, and Fleet
+
+WebUI, authenticated:
 
 ```bash
 biliup server --auth
 ```
 
-When the user provides an address or port, include them explicitly:
+Bind and port when the user names them. The default bind is `127.0.0.1` and the default port is `19159`.
 
 ```bash
 biliup server --bind 0.0.0.0 --port 19159 --auth
 ```
 
-When the user asks to run from a biliup 1.0.7 style config file, use:
+`--secure-session-cookie` marks the session cookie Secure. Use it only behind HTTPS. On plain HTTP the browser drops the login.
+
+A biliup 1.0.7 recording config:
 
 ```bash
 biliup server --config config.toml
@@ -126,23 +181,26 @@ biliup server --config config.toml
 
 Replace `config.toml` with the user's config file path.
 
-When the user wants to run the server in the background on Linux or macOS, use:
+Background on Linux or macOS:
 
 ```bash
 nohup biliup server --auth &
 ```
 
-When the user asks to manage their collections (合集), use the `season` subcommands. They read the login from the cookie file (`-u/--user-cookie`, default `cookies.json`), so run `biliup login` first if it does not exist. Add `--json` for machine-readable output.
+`--controller` runs this process as a Fleet control plane (data in `data/fleet.sqlite3`). `--relay-listen` and `--relay-url` apply only with `--controller`.
 
-```bash
-biliup season list
-biliup season sections <season_id>
-biliup season add <section_id> --vid <BV or av>
-biliup season remove <episode_id>
-biliup season sort <section_id> <episode_id>...
-```
+`biliup user` manages Web UI users in `data/data.sqlite3` from the server's working directory: `list`, `reset-password`.
 
-`list` shows season and section IDs; `sections` shows each episode's `episode_id` (not the aid), which `remove` and `sort` take. `add` looks up the cid and title automatically and accepts `--vid` more than once. `sort` moves the listed episodes to the front in the given order and keeps the rest in their current order; `--reverse` reverses the whole section instead.
+`biliup node` manages this machine's Fleet membership in `data/node.json`: `join` (then restart `biliup server`), `leave`, `status`.
+
+## Other commands
+
+- `login` saves Bilibili login info. `renew` checks and refreshes it.
+- `show <BV or av>` prints archive details.
+- `list` lists uploaded videos. `--is-pubing`, `--pubed`, and `--not-pubed` filter by status. `--from-page` and `--max-pages` page through them.
+- `download <url>` saves a video. `--output` is a filename template. `--split-size` and `--split-time` split the download.
+- `comments <vid>` lists comments. `reply <vid> <rpid> <message>` only prints the reply unless `--execute` is set.
+- `dump-flv <file>` prints FLV metadata.
 
 ## Help flow
 
@@ -168,8 +226,6 @@ Replace `<command>` with the requested subcommand.
 
 ## Commands
 
-The CLI includes these subcommands:
-
 ```text
 login
 renew
@@ -183,7 +239,8 @@ download
 server
 season
 user
+node
 list
 ```
 
-When generating a command, include the concrete paths required by that command, such as cookie files, config files, and video file paths.
+When generating a command, include the concrete paths required by that command, such as the cookie file, config file, and video path.
