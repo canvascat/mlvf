@@ -149,6 +149,38 @@ test("已经有 ttml 才跳过歌词搜索", () => {
   assert.equal(shouldSearchLyrics({ format: "ttml" }), false);
 });
 
+test("默认同 splayer：更高格式压过更贴时长的低格式", () => {
+  const all = pickBestLyric(
+    [
+      hit("yrc", { duration: 274_000 }, "netease"),
+      hit("yrc", { duration: 270_000 }, "kugou"),
+      hit("qrc", { duration: 269_000 }, "qqmusic"),
+      hit("lys", { duration: 268_000 }, "qqmusic"),
+      hit("ttml", { duration: 267_000 }, "amll-ttml"),
+    ],
+    query,
+  );
+  assert.equal(all?.format, "ttml");
+
+  const withoutTtml = pickBestLyric(
+    [
+      hit("yrc", { duration: 274_000 }, "netease"),
+      hit("qrc", { duration: 269_000 }, "qqmusic"),
+    ],
+    query,
+  );
+  assert.equal(withoutTtml?.format, "qrc");
+
+  const withoutQrc = pickBestLyric(
+    [
+      hit("yrc", { duration: 274_000 }, "netease"),
+      hit("yrc", { duration: 269_000 }, "kugou"),
+    ],
+    query,
+  );
+  assert.equal(withoutQrc?.source, "kugou");
+});
+
 test("时长接近时 ttml 压过内嵌 lrc", () => {
   const chosen = pickBestLyric(
     [

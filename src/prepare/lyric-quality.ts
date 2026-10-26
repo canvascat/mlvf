@@ -19,16 +19,28 @@ export function isUsableParsedLyric(
   return body.length >= 3;
 }
 
+// 与 SPlayer 默认格式顺序一致：ttml > lys > qrc > krc > yrc > lrc。
+// 酷狗 KRC 写出后仍是 yrc，单独排在网易 yrc 前面。
 const FORMAT_RANK: Record<LyricFormat, number> = {
-  ttml: 3,
+  ttml: 6,
+  lys: 5,
+  qrc: 4,
   yrc: 2,
-  qrc: 2,
-  lys: 2,
   lrc: 1,
 };
 
 export function lyricFormatRank(format: LyricFormat): number {
   return FORMAT_RANK[format];
+}
+
+export function lyricSelectionRank(hit: {
+  format: LyricFormat;
+  source: string;
+}): number {
+  if (hit.source === "kugou" && hit.format === "yrc") {
+    return 3;
+  }
+  return lyricFormatRank(hit.format);
 }
 
 export function mergeLrcTranslation(

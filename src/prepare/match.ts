@@ -1,4 +1,4 @@
-import { lyricFormatRank } from "./lyric-quality";
+import { lyricSelectionRank } from "./lyric-quality";
 import type { LyricCandidate, ProviderLyric, TrackQuery } from "./types";
 
 const LYRIC_FORMAT_PREFERENCES = ["krc", "ttml", "yrc", "qrc", "lys", "lrc"] as const;
@@ -225,19 +225,14 @@ function selectLyric(
     }
     const delta =
       durationDeltaMs(hit.candidate, query) ?? Number.POSITIVE_INFINITY;
-    const rank = lyricFormatRank(hit.format);
-    const wordLevel = rank >= lyricFormatRank("yrc");
-    const bestWordLevel = bestRank >= lyricFormatRank("yrc");
+    const rank = lyricSelectionRank(hit);
     const closer = delta < bestDelta - DURATION_SIMILAR_MS;
     const farther = delta > bestDelta + DURATION_SIMILAR_MS;
-    const betterFormat =
-      rank > bestRank || (rank === bestRank && score > bestScore);
-    const wordBeatsLine = wordLevel && !bestWordLevel;
-    const lineLosesToWord = !wordLevel && bestWordLevel;
+    const sameFormat = rank === bestRank;
     if (
       !best ||
-      wordBeatsLine ||
-      (!lineLosesToWord && (closer || (!farther && betterFormat)))
+      rank > bestRank ||
+      (sameFormat && (closer || (!farther && score > bestScore)))
     ) {
       best = hit;
       bestDelta = delta;
