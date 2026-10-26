@@ -3,7 +3,9 @@ import { parseLyricText } from "../helpers/lyrics";
 import { readRmsEnvelope } from "./audio-envelope";
 import { LOOKUP_TIMEOUT_MS, fetchBytes, mergeSignals } from "./http";
 import { estimateLyricOffsetMs, lyricOnsetTimesMs } from "./lyric-offset";
+import { findAlbumCover } from "./album-cover";
 import {
+  albumNamesMatch,
   buildSearchKeyword,
   lyricMatchesPreference,
   pickBestLyric,
@@ -17,6 +19,7 @@ import { lookupLrclib } from "./providers/lrclib";
 import { lookupNetease } from "./providers/netease";
 import { lookupQqMusic } from "./providers/qqmusic";
 import { firstNonBlank, readLocalTags, resolveQueryTitle } from "./tags";
+import { prepareDisplayText, sanitizeLyric } from "./text-cleanup";
 import type {
   CoverSource,
   LookupResult,
@@ -135,15 +138,19 @@ export async function lookupTrack(options: {
     AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
   );
 
-  const [netease, qqmusic, kugou, lrclib, itunes] = await Promise.all([
-    needsLyric ? lookupNetease(query, keyword, signal) : Promise.resolve(null),
-    needsLyric ? lookupQqMusic(query, keyword, signal) : Promise.resolve(null),
-    needsLyric ? lookupKugou(query, keyword, signal) : Promise.resolve(null),
-    needsLyric ? lookupLrclib(query, keyword, signal) : Promise.resolve(null),
-    needsCover || needsIdentity
-      ? lookupItunes(query, keyword, signal)
-      : Promise.resolve(null),
-  ]);
+  const [netease, qqmusic, kugou, lrclib, itunes, albumCoverHit] =
+    await Promise.all([
+      needsLyric ? lookupNetease(query, keyword, signal) : Promise.resolve(null),
+      needsLyric ? lookupQqMusic(query, keyword, signal) : Promise.resolve(null),
+      needsLyric ? lookupKugou(query, keyword, signal) : Promise.resolve(null),
+      needsLyric ? lookupLrclib(query, keyword, signal) : Promise.resolve(null),
+      needsCover || needsIdentity
+        ? lookupItunes(query, keyword, signal)
+        : Promise.resolve(null),
+      needsCover && query.album.trim()
+        ? findAlbumCover(query, signal)
+        : Promise.resolve(undefined),
+    ]);
 
   const platformHits = [netease, qqmusic, kugou, lrclib].filter(
     (hit): hit is ProviderLyric => hit !== null,
@@ -170,7 +177,7 @@ export async function lookupTrack(options: {
       }
     : null;
 
-  const lyric = pickBestLyric(
+  const picked = pickBestLyric(
     [
       ...(embeddedLyricHit ? [embeddedLyricHit] : []),
       ...ttmlHits,
@@ -179,6 +186,9 @@ export async function lookupTrack(options: {
     query,
     options.lyricFormat,
   );
+  const lyric = picked
+    ? { ...picked, content: sanitizeLyric(picked.content) }
+    : undefined;
   if (
     options.lyricFormat &&
     (!lyric || !lyricMatchesPreference(lyric, options.lyricFormat))
@@ -201,39 +211,60 @@ export async function lookupTrack(options: {
     : undefined;
 
   let cover: ResolvedCover | undefined = coverFromFile;
-  if (!cover && lyric?.coverUrl) {
+  if (!cover && albumCoverHit) {
+    console.log(`封面匹配专辑 ${albumCoverHit.source}`);
+    cover = await downloadCover(albumCoverHit.url, albumCoverHit.source, signal);
+  }
+  const lyricAlbumMatches =
+    !query.album.trim() ||
+    albumNamesMatch(lyric?.candidate.album, query.album);
+  if (!cover && lyric?.coverUrl && lyricAlbumMatches) {
     cover = await downloadCover(lyric.coverUrl, coverSourceFor(lyric), signal);
   }
-  if (!cover && itunes?.coverUrl) {
+  const itunesAlbumMatches =
+    !query.album.trim() ||
+    albumNamesMatch(itunes?.candidate.album, query.album);
+  if (!cover && itunes?.coverUrl && itunesAlbumMatches) {
     cover = await downloadCover(itunes.coverUrl, "itunes", signal);
+  }
+  if (!cover && query.album.trim()) {
+    console.log(`没有和专辑匹配的封面（《${query.album}》）`);
   }
 
   const filenameTitle = titleFromAudioPath(options.audioPath);
   return {
     query,
     durationInSeconds: trackDuration,
-    songName: titleLocked
-      ? query.title
-      : firstNonBlank(
-          lyric?.candidate.name,
-          itunes?.candidate.name,
-          query.title,
-          filenameTitle,
-        ),
-    artistName: artistLocked
-      ? query.artist
-      : firstNonBlank(
-          lyric?.candidate.artist,
-          itunes?.candidate.artist,
-          query.artist,
-        ) || "未知创作者",
-    albumName: albumLocked
-      ? query.album
-      : firstNonBlank(
-          lyric?.candidate.album,
-          itunes?.candidate.album,
-          query.album,
-        ) || "未知专辑",
+    songName: prepareDisplayText(
+      titleLocked
+        ? query.title
+        : firstNonBlank(
+            lyric?.candidate.name,
+            itunes?.candidate.name,
+            query.title,
+            filenameTitle,
+          ),
+    ),
+    artistName:
+      prepareDisplayText(
+        artistLocked
+          ? query.artist
+          : firstNonBlank(
+              lyric?.candidate.artist,
+              itunes?.candidate.artist,
+              query.artist,
+            ),
+      ) || "未知创作者",
+    albumName:
+      prepareDisplayText(
+        albumLocked
+          ? query.album
+          : firstNonBlank(
+              lyric?.candidate.album,
+              itunes?.candidate.album,
+              query.album,
+            ),
+      ) || "未知专辑",
     lyric: lyric
       ? {
           source: lyric.source,

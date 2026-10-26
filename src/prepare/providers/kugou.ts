@@ -1,5 +1,5 @@
 import { decryptKrc, krcToYrc, prefersKugouKrc } from "../krc";
-import { pickBestCandidate } from "../match";
+import { albumNamesMatch, pickBestCandidate } from "../match";
 import { fetchJson, providerSignal } from "../http";
 import { validateLyric } from "../lyric-quality";
 import type { LyricCandidate, ProviderLyric, TrackQuery } from "../types";
@@ -110,6 +110,34 @@ async function downloadKugouLyric(
     return null;
   }
   return { format: "lrc", content: lrc };
+}
+
+export async function findKugouAlbumCover(
+  query: TrackQuery,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  if (!query.album.trim()) {
+    return undefined;
+  }
+  try {
+    const keyword = `${query.album} ${query.artist}`.trim();
+    const body = await fetchJson<SearchResponse>(
+      `http://mobilecdn.kugou.com/api/v3/search/song?format=json&keyword=${encodeURIComponent(keyword)}&page=1&pagesize=20&showtype=1`,
+      { signal },
+    );
+    for (const song of body.data?.info ?? []) {
+      if (!albumNamesMatch(song.album_name, query.album)) {
+        continue;
+      }
+      const url = await albumCover(song.album_id ?? "", signal);
+      if (url) {
+        return url;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export async function lookupKugou(

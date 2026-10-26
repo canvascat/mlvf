@@ -103,16 +103,12 @@ async function placeCover(
   stem: string,
   cover?: ResolvedCover,
 ): Promise<string> {
-  const existing = existingCoverName(outDir, stem);
-  if (existing) {
-    return existing;
+  if (cover) {
+    const name = `${stem}${coverExtension(cover.mimeType)}`;
+    await writeFile(path.join(outDir, name), cover.data);
+    return name;
   }
-  if (!cover) {
-    return "";
-  }
-  const name = `${stem}${coverExtension(cover.mimeType)}`;
-  await writeFile(path.join(outDir, name), cover.data);
-  return name;
+  return existingCoverName(outDir, stem) ?? "";
 }
 
 export async function writeMaterials(options: {

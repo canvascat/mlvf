@@ -34,6 +34,31 @@ export function normalize(text: string | undefined | null): string {
   return text.toLowerCase().replace(/[、&;，,/|()·・\s\-_'"`~!?？！.。]+/g, "");
 }
 
+/** 去掉括号里的译名、版本和合作者，再拿来对歌名。 */
+function nameCore(text: string | undefined | null): string {
+  let value = text ?? "";
+  for (let i = 0; i < 4; i += 1) {
+    const next = value.replace(/\s*[(（][^()（）]*[)）]\s*/g, " ");
+    if (next === value) {
+      break;
+    }
+    value = next;
+  }
+  return normalize(value);
+}
+
+/** 本地专辑名和在线专辑名是否同一张。波浪号和空格不算差别。 */
+export function albumNamesMatch(
+  left: string | undefined | null,
+  right: string | undefined | null,
+): boolean {
+  const album = (value: string | undefined | null) =>
+    normalize(value).replace(/[～〜]/g, "");
+  const a = album(left);
+  const b = album(right);
+  return Boolean(a) && a === b;
+}
+
 export function buildSearchKeyword(query: TrackQuery): string {
   return [query.title, query.artist]
     .map((part) => part.trim())
@@ -123,7 +148,11 @@ export function scoreCandidate(
   const candName = normalize(candidate.name);
   const candAlbum = normalize(candidate.album);
 
-  const nameExact = candName.length > 0 && candName === trackName;
+  const trackCore = nameCore(query.title);
+  const candCore = nameCore(candidate.name);
+  const nameExact =
+    (candName.length > 0 && candName === trackName) ||
+    (candCore.length > 0 && candCore === trackCore);
   if (!nameExact) {
     if (!bothContains(candName, trackName)) {
       return -1;

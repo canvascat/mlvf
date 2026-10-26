@@ -3,6 +3,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { detectLyricFormat, parseLyricText } from "../helpers/lyrics";
 import { fetchJson, fetchText } from "./http";
+import {
+  prepareDisplayText,
+  repairLegacyChinese,
+  toSimplified,
+} from "./text-cleanup";
+
+export { repairLegacyChinese };
 import { fileStem } from "./write-materials";
 
 export type VideoBlurb = {
@@ -96,7 +103,7 @@ async function collectFacts(audioPath: string, lyricPath?: string) {
   const ttmlArtists = readTtmlValues(lyricText, "artists");
   const artists = unique(
     [...(common.artists ?? []), common.artist ?? "", ...ttmlArtists].map(
-      repairLegacyChinese,
+      prepareDisplayText,
     ),
   );
   const appleId = readTtmlValues(lyricText, "appleMusicId")[0];
@@ -110,11 +117,19 @@ async function collectFacts(audioPath: string, lyricPath?: string) {
   ]);
 
   return {
-    songName: common.title?.trim() || readTtmlValues(lyricText, "musicName")[0] || fileStem(audioPath),
+    songName: prepareDisplayText(
+      common.title?.trim() ||
+        readTtmlValues(lyricText, "musicName")[0] ||
+        fileStem(audioPath),
+    ),
     artists,
-    albumName: common.album?.trim() || readTtmlValues(lyricText, "album")[0] || "",
+    albumName: prepareDisplayText(
+      common.album?.trim() || readTtmlValues(lyricText, "album")[0] || "",
+    ),
     releaseDate: common.date?.trim() || apple?.releaseDate,
-    genre: common.genre?.filter(Boolean).join("、") || apple?.genre,
+    genre: prepareDisplayText(
+      common.genre?.filter(Boolean).join("、") || apple?.genre || "",
+    ),
     credits: lyricCredits.length
       ? lyricCredits
       : qqCredits.length
@@ -128,7 +143,9 @@ async function collectFacts(audioPath: string, lyricPath?: string) {
 }
 
 function tagCredits(composer: string[] | undefined): Credit[] {
-  const name = composer?.map((item) => item.trim()).filter(Boolean).join("、");
+  const name = prepareDisplayText(
+    composer?.map((item) => item.trim()).filter(Boolean).join("、") ?? "",
+  );
   return name ? [{ role: "曲", name }] : [];
 }
 
@@ -196,7 +213,7 @@ async function lookupQqCredits(mid: string): Promise<Credit[]> {
 }
 
 const CREDIT_LINE =
-  /^(制作人|作词|作曲|编曲|词|曲)\s*[:：]\s*(.+)$/;
+  /^(制作人|製作人|作词|作詞|作曲|编曲|編曲|词|詞|曲)\s*[:：]\s*(.+)$/;
 
 export function creditsFromLyric(text: string, lyricPath?: string): Credit[] {
   if (!text.trim()) {
@@ -227,11 +244,14 @@ export function parseCreditLines(lyric: string): Credit[] {
     if (!match?.[1] || !match[2]) {
       continue;
     }
-    const role = match[1].replace(/^作/, "");
+    const role = toSimplified(match[1]).replace(/^作/, "");
     if (!CREDIT_ROLES.includes(role as (typeof CREDIT_ROLES)[number])) {
       continue;
     }
-    credits.push({ role, name: match[2].replace(/\//g, "、").trim() });
+    credits.push({
+      role,
+      name: prepareDisplayText(match[2].replace(/\//g, "、")),
+    });
   }
   return credits;
 }
@@ -262,30 +282,6 @@ function formatReleaseDate(value: string | undefined): string {
     return "";
   }
   return `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`;
-}
-
-/** 标签里偶发把 GBK 歌手名按 Latin-1 读出，例如「周杰伦」变成「ÖÜ½ÜÂ×」。已有汉字则不动。 */
-export function repairLegacyChinese(value: string): string {
-  const text = value.trim();
-  if (!text || /[\u3400-\u9fff]/.test(text)) {
-    return text;
-  }
-  const bytes: number[] = [];
-  for (const char of text) {
-    const code = char.codePointAt(0) ?? 0;
-    if (code > 0xff) {
-      return text;
-    }
-    bytes.push(code);
-  }
-  if (!bytes.some((byte) => byte >= 0x80)) {
-    return text;
-  }
-  const decoded = new TextDecoder("gb18030").decode(Uint8Array.from(bytes));
-  if (/[\u3400-\u9fff]/.test(decoded) && !decoded.includes("\uFFFD")) {
-    return decoded;
-  }
-  return text;
 }
 
 function unique(values: string[]): string[] {

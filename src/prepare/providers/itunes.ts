@@ -1,4 +1,4 @@
-import { pickBestCandidate } from "../match";
+import { albumNamesMatch, pickBestCandidate } from "../match";
 import { fetchJson, providerSignal } from "../http";
 import type { ItunesHit, LyricCandidate, TrackQuery } from "../types";
 
@@ -72,6 +72,49 @@ function dedupe(candidates: LyricCandidate[]): LyricCandidate[] {
     out.push(candidate);
   }
   return out;
+}
+
+type ItunesAlbum = {
+  collectionName?: string;
+  artworkUrl100?: string;
+};
+
+export async function findItunesAlbumCover(
+  query: TrackQuery,
+  signal?: AbortSignal,
+): Promise<string | undefined> {
+  if (!query.album.trim()) {
+    return undefined;
+  }
+  const countries = [undefined, "jp", "hk"] as const;
+  for (const country of countries) {
+    try {
+      const params = new URLSearchParams({
+        term: query.album,
+        entity: "album",
+        limit: "10",
+      });
+      if (country) {
+        params.set("country", country);
+      }
+      const body = await fetchJson<{ results?: ItunesAlbum[] }>(
+        `https://itunes.apple.com/search?${params.toString()}`,
+        { signal },
+      );
+      for (const album of body.results ?? []) {
+        if (!albumNamesMatch(album.collectionName, query.album)) {
+          continue;
+        }
+        const url = artworkUrl(album.artworkUrl100);
+        if (url) {
+          return url;
+        }
+      }
+    } catch {
+      // 换一个国家再试
+    }
+  }
+  return undefined;
 }
 
 export async function lookupItunes(

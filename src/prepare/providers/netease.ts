@@ -1,4 +1,4 @@
-import { pickBestCandidate } from "../match";
+import { albumNamesMatch, pickBestCandidate } from "../match";
 import {
   fetchJson,
   providerSignal,
@@ -85,6 +85,48 @@ function toCandidate(song: SearchSong): LyricCandidate {
     duration: song.duration,
     extra: { id: String(song.id) },
   };
+}
+
+type AlbumSearch = {
+  code?: number;
+  result?: {
+    albums?: Array<{ name?: string; picUrl?: string }>;
+  };
+};
+
+export async function findNeteaseAlbumCover(
+  query: TrackQuery,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  if (!query.album.trim()) {
+    return undefined;
+  }
+  try {
+    const params = new URLSearchParams({
+      s: `${query.album} ${query.artist}`.trim(),
+      type: "10",
+      offset: "0",
+      limit: "10",
+    });
+    const body = await fetchJson<AlbumSearch>(
+      `${SEARCH_PRIMARY}?${params.toString()}`,
+      { signal, headers: NETEASE_HEADERS },
+    );
+    if (body.code === 405 || body.code === 406) {
+      return undefined;
+    }
+    for (const album of body.result?.albums ?? []) {
+      if (!album.picUrl || !albumNamesMatch(album.name, query.album)) {
+        continue;
+      }
+      return album.picUrl.includes("?")
+        ? album.picUrl
+        : `${album.picUrl}?param=800y800`;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export async function lookupNetease(

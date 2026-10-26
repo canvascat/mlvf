@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  albumNamesMatch,
   parseLyricFormatPreference,
   pickBestCandidate,
   pickBestLyric,
@@ -37,6 +38,30 @@ function hit(
   };
 }
 
+test("专辑名忽略空格和波浪号", () => {
+  assert.equal(
+    albumNamesMatch(
+      "ZARD BEST The Single Collection ～軌跡～",
+      "ZARD BEST The  Single  Collection  ～軌跡～",
+    ),
+    true,
+  );
+  assert.equal(
+    albumNamesMatch(
+      "ZARD BEST The Single Collection ～軌跡～",
+      "負けないで",
+    ),
+    false,
+  );
+  assert.equal(
+    albumNamesMatch(
+      "ZARD BEST The Single Collection ～軌跡～",
+      "ZARD Best Request ～35th Anniversary～",
+    ),
+    false,
+  );
+});
+
 test("跨源选词时，时长更接近的版本压过更好的歌词格式", () => {
   const chosen = pickBestLyric(
     [
@@ -70,6 +95,49 @@ test("时长同样接近时，才用更好的歌词格式", () => {
     query,
   );
   assert.equal(chosen?.format, "yrc");
+});
+
+test("括号里的译名和合作者名单不挡住同一首歌", () => {
+  const remix = pickBestCandidate(
+    [
+      candidate({
+        name: "運命のルーレット廻して (转动命运之轮)",
+        artist: "ZARD",
+        album: "永遠",
+        duration: 319_000,
+      }),
+      candidate({
+        name: "運命のルーレット廻して (转动命运之轮) (Re-mix Version)",
+        artist: "ZARD",
+        album: "ZARD BEST The Single Collection ～軌跡～",
+        duration: 315_000,
+      }),
+    ],
+    {
+      title: "運命のルーレット廻して (Re-mix Version)",
+      artist: "ZARD",
+      album: "ZARD BEST The Single Collection ～軌跡～",
+      durationMs: 314_650,
+    },
+  );
+  assert.equal(remix?.duration, 315_000);
+
+  const dream = pickBestCandidate(
+    [
+      candidate({
+        name: "果てしない夢を",
+        artist: "ZYYG/REV/ZARD/WANDS/長嶋茂雄",
+        duration: 293_000,
+      }),
+    ],
+    {
+      title: "果てしない夢を (ZYYG,REV,ZARD & WANDS featuring 長嶋茂雄)",
+      artist: "ZARD",
+      album: "ZARD BEST The Single Collection ～軌跡～",
+      durationMs: 287_530,
+    },
+  );
+  assert.equal(dream?.name, "果てしない夢を");
 });
 
 test("同一源里也优先时长接近的候选", () => {

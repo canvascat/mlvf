@@ -1,5 +1,10 @@
 import { decryptQrcHex } from "@applemusic-like-lyrics/lyric";
-import { durationDeltaMs, pickBestCandidate, scoreCandidate } from "../match";
+import {
+  albumNamesMatch,
+  durationDeltaMs,
+  pickBestCandidate,
+  scoreCandidate,
+} from "../match";
 import {
   decodeHtmlEntities,
   fetchJson,
@@ -222,6 +227,34 @@ async function searchSongs(
     { signal, headers: QQ_HEADERS },
   );
   return body.data?.song?.list ?? [];
+}
+
+export async function findQqAlbumCover(
+  query: TrackQuery,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  if (!query.album.trim()) {
+    return undefined;
+  }
+  try {
+    const songs = await searchSongs(
+      `${query.album} ${query.artist}`.trim(),
+      signal,
+    );
+    for (const song of songs) {
+      const candidate = toCandidate(song);
+      if (!candidate || !albumNamesMatch(candidate.album, query.album)) {
+        continue;
+      }
+      const url = coverUrl(candidate.extra?.albumMid || "");
+      if (url) {
+        return url;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export async function lookupQqMusic(

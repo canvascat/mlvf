@@ -11,6 +11,14 @@ test("时长按秒四舍五入", () => {
   assert.equal(formatClock(228.64), "3:49");
 });
 
+test("繁体署名转成简体", () => {
+  const credits = parseCreditLines("作詞：織田哲郎\n編曲：明石昌夫\n");
+  assert.deepEqual(credits, [
+    { role: "词", name: "织田哲郎" },
+    { role: "编曲", name: "明石昌夫" },
+  ]);
+});
+
 test("歌词头里的词曲编曲可以解析", () => {
   const credits = parseCreditLines(
     "[00:18.14]词：黄俊郎\n[00:23.81]曲：周杰伦\n[00:29.48]编曲：钟兴民/林迈可\n作词：方文山\n制作人：周杰伦\n",
