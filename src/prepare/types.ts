@@ -6,7 +6,8 @@ export type LyricSource =
   | "kugou"
   | "lrclib"
   | "embedded"
-  | "amll-ttml";
+  | "amll-ttml"
+  | "apple-ttml";
 
 export type CoverSource =
   | "embedded"

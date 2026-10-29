@@ -70,7 +70,7 @@ json 字段对齐 [`TrackProps`](../helpers/schema.ts)，另带 `match` 说明�
 }
 ```
 
-`lyricSource`：`embedded` | `amll-ttml` | `netease` | `qqmusic` | `kugou` | `lrclib`  
+`lyricSource`：`embedded` | `apple-ttml` | `amll-ttml` | `netease` | `qqmusic` | `kugou` | `lrclib`  
 `coverSource`：`embedded` | `netease` | `qqmusic` | `kugou` | `itunes`
 
 ### 整轨 CUE
@@ -125,7 +125,7 @@ nub run _prepare -- --audio "王菲.-.1997-03-01.-.菲卖品 王菲精选.-.新�
 
 ## 联网匹配
 
-缺什么补什么。歌词源并发搜索，总超时约 20s，单源失败不影响其它源。只取歌词、封面 URL、元数据，不下载音轨、不登录。
+缺什么补什么。歌词源并发搜索，总超时约 20s，单源失败不影响其它源。只取歌词、封面 URL、元数据，不下载音轨。Apple Music 逐字 TTML 只在已经配置了 Media-User-Token 时请求，不会另外弹出登录。
 
 搜索词：`歌名 + 歌手`。候选用 `pickBestCandidate` / `pickBestLyric`（见 `match.ts`）：
 
@@ -143,6 +143,7 @@ nub run _prepare -- --audio "王菲.-.1997-03-01.-.菲卖品 王菲精选.-.新�
 | 酷狗 | 搜索；逐字候选解密 KRC 并写成 YRC，否则用明文 lrc | KRC 头 4 字节后异或再 inflate |
 | LRCLIB | `/api/get`（先带专辑再去掉）→ `/api/search` | 只要 synced LRC |
 | AMLL TTML | `amlldb.bikonoo.com/ncm-lyrics\|qq-lyrics/{id}.ttml` | 有平台 ID 才拉 |
+| Apple Music TTML | `amp-api` 的 `syllable-lyrics` | 配置了 Media-User-Token 才拉。`nub.jsonc` 的 `envFile` 指向项目根目录 `.env`，`nub` 启动时把它读进环境变量，备料只看 `MEDIA_USER_TOKEN`。`.env` 已在 git 忽略里。账号地区用 `APPLE_MUSIC_STOREFRONT`，没有就读 `/me/storefront`。搜索账号曲库以及 `cn`、`tw`、`jp`。只要带逐字时间的 TTML；专辑版只有逐行时，改用同一 ISRC 的 Single 逐字稿。开发者 token 从 `music.apple.com` 的网页播放器里取，进程内复用 |
 | iTunes Search | 补封面（600×600）和仍空的身份字段 | 并行查默认店 + hk + jp；罗马音歌手名放宽匹配 |
 
 ## 库函数
@@ -190,6 +191,6 @@ const { jsonPath, hasLyrics } = await writeMaterials({
 ## 非目标
 
 - 不把整轨切成每首歌一个音频文件
-- 不拉播放地址、Cookie、登录
+- 不拉播放地址，也不为 Apple Music 单独做登录。Media-User-Token 放在项目根目录 `.env`，由 nub 读入
 - 不解密 QQ 音乐的加密 QRC
 - 不做持久缓存（只有进程内超时与失败隔离）

@@ -13,6 +13,7 @@ import {
   type LyricFormatPreference,
 } from "./match";
 import { overlayAmlTtml } from "./providers/amll-ttml";
+import { lookupAppleTtml } from "./providers/apple-ttml";
 import { lookupItunes } from "./providers/itunes";
 import { lookupKugou } from "./providers/kugou";
 import { lookupLrclib } from "./providers/lrclib";
@@ -29,6 +30,9 @@ import type {
 } from "./types";
 
 function coverSourceFor(hit: ProviderLyric): CoverSource {
+  if (hit.source === "apple-ttml") {
+    return "itunes";
+  }
   if (hit.source === "kugou") {
     return "kugou";
   }
@@ -138,12 +142,15 @@ export async function lookupTrack(options: {
     AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
   );
 
-  const [netease, qqmusic, kugou, lrclib, itunes, albumCoverHit] =
+  const [netease, qqmusic, kugou, lrclib, appleTtml, itunes, albumCoverHit] =
     await Promise.all([
       needsLyric ? lookupNetease(query, keyword, signal) : Promise.resolve(null),
       needsLyric ? lookupQqMusic(query, keyword, signal) : Promise.resolve(null),
       needsLyric ? lookupKugou(query, keyword, signal) : Promise.resolve(null),
       needsLyric ? lookupLrclib(query, keyword, signal) : Promise.resolve(null),
+      needsLyric
+        ? lookupAppleTtml(query, keyword, signal)
+        : Promise.resolve(null),
       needsCover || needsIdentity
         ? lookupItunes(query, keyword, signal)
         : Promise.resolve(null),
@@ -152,7 +159,7 @@ export async function lookupTrack(options: {
         : Promise.resolve(undefined),
     ]);
 
-  const platformHits = [netease, qqmusic, kugou, lrclib].filter(
+  const platformHits = [netease, qqmusic, kugou, lrclib, appleTtml].filter(
     (hit): hit is ProviderLyric => hit !== null,
   );
   const ttmlHits = (

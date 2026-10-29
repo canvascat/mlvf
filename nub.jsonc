@@ -1,0 +1,4 @@
+{
+  "$schema": "https://nubjs.com/schema/latest.json",
+  "envFile": [".env"],
+}

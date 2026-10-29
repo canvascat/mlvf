@@ -73,6 +73,23 @@ export async function fetchText(
   return response.text();
 }
 
+export async function fetchRaw(
+  url: string,
+  options: {
+    signal?: AbortSignal;
+    headers?: Record<string, string>;
+  } = {},
+): Promise<{ status: number; text: string }> {
+  const response = await fetch(url, {
+    signal: options.signal,
+    headers: {
+      "User-Agent": USER_AGENT,
+      ...options.headers,
+    },
+  });
+  return { status: response.status, text: await response.text() };
+}
+
 export async function fetchJson<T>(
   url: string,
   options: {
