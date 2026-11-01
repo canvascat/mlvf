@@ -42,6 +42,7 @@ export function buildVideoBlurb(input: {
   bitsPerSample?: number;
   channels?: number;
   durationSeconds?: number;
+  convertedFromAlac?: boolean;
 }): VideoBlurb {
   const song = input.songName.trim() || "未知歌曲";
   const artists = unique(input.artists.map((name) => name.trim()).filter(Boolean));
@@ -78,7 +79,11 @@ export function buildVideoBlurb(input: {
   if (input.durationSeconds && input.durationSeconds > 0) {
     lines.push(`时长：${formatClock(input.durationSeconds)}`);
   }
-  lines.push("画面为歌词视频，音轨使用原文件无损封装。");
+  lines.push(
+    input.convertedFromAlac
+      ? "画面为歌词视频，音轨由原 ALAC 无损转为 FLAC 封装，采样率和位深不变。"
+      : "画面为歌词视频，音轨使用原文件无损封装。",
+  );
 
   return { title, description: lines.join("\n") };
 }
@@ -87,9 +92,19 @@ export async function writeVideoBlurb(options: {
   audioPath: string;
   lyricPath?: string;
   outDir: string;
+  /** 命令行覆盖的歌名、歌手、专辑，优先于音频标签。 */
+  overrides?: { title?: string; artist?: string; album?: string };
+  convertedFromAlac?: boolean;
 }): Promise<{ blurb: VideoBlurb; textPath: string }> {
   const facts = await collectFacts(options.audioPath, options.lyricPath);
-  const blurb = buildVideoBlurb(facts);
+  const { title, artist, album } = options.overrides ?? {};
+  const blurb = buildVideoBlurb({
+    ...facts,
+    songName: title?.trim() ? prepareDisplayText(title) : facts.songName,
+    artists: artist?.trim() ? [prepareDisplayText(artist)] : facts.artists,
+    albumName: album?.trim() ? prepareDisplayText(album) : facts.albumName,
+    convertedFromAlac: options.convertedFromAlac,
+  });
   const textPath = path.join(options.outDir, `${fileStem(options.audioPath)}.txt`);
   const body = `标题\n${blurb.title}\n\n简介\n${blurb.description}\n`;
   await writeFile(textPath, body, "utf8");

@@ -6,6 +6,7 @@ import { isCuePath } from "./cue";
 import { lookupTrack } from "./lookup";
 import { parseLyricFormatPreference, type LyricFormatPreference } from "./match";
 import { stagePrepareInput } from "./stage";
+import { isAlac, transcodeAlacToFlac } from "./transcode";
 import { writeVideoBlurb } from "./video-blurb";
 import { writeMaterials } from "./write-materials";
 
@@ -158,15 +159,24 @@ async function main() {
       return;
     }
 
+    let audioPath = staged.inputPath;
+    let convertedFromAlac = false;
+    if (await isAlac(audioPath)) {
+      console.log("ALAC 浏览器无法解码，正在无损转成 FLAC…");
+      audioPath = await transcodeAlacToFlac(audioPath);
+      convertedFromAlac = true;
+      console.log(`已转码 ${audioPath}`);
+    }
+
     const result = await lookupTrack({
-      audioPath: staged.inputPath,
+      audioPath,
       title: args.title,
       artist: args.artist,
       album: args.album,
       lyricFormat: args.lyricFormat,
     });
     const { jsonPath, prepared, hasLyrics } = await writeMaterials({
-      audioPath: staged.inputPath,
+      audioPath,
       outDir,
       result,
       lyricOffsetMs: args.lyricOffset,
@@ -197,7 +207,13 @@ async function main() {
     }
 
     const blurb = await writeVideoBlurb({
-      audioPath: staged.inputPath,
+      audioPath,
+      overrides: {
+        title: args.title,
+        artist: args.artist,
+        album: args.album,
+      },
+      convertedFromAlac,
       lyricPath: prepared.lyricsFileUrl
         ? path.join(outDir, prepared.lyricsFileUrl)
         : undefined,

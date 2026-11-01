@@ -18,10 +18,12 @@ nub run _prepare -- --audio <音频或CUE>
 | --- | --- |
 | `--audio` | 音频或 `.cue` 路径（必填） |
 | `--out` | 输出目录（可选，默认是预处理副本所在目录） |
-| `--title` / `--artist` / `--album` | 覆盖标签后再搜索 |
+| `--title` / `--artist` / `--album` | 覆盖标签后再搜索，标题和简介也用覆盖后的值。标签里的歌手是外文区译名导致匹配不到歌词时，用 `--artist` 换成原名 |
 | `--lyric-offset` | 人工确认后的歌词偏移（毫秒）。不传只报告疑似值 |
 | `--lyric-format` | 优先使用的歌词格式：`krc`、`ttml`、`yrc`、`qrc`、`lys`、`lrc`。没有该格式时退回默认选择。`krc` 是酷狗逐字稿，写出时仍是 `.yrc` |
 | `-h` | 帮助 |
+
+ALAC（`.m4a`）浏览器解不了，预览、背景分析和渲染都会报 `Audio track cannot be decoded`。备料时先用 ffmpeg 无损转成同名 `.flac`（采样率、位深、标签、封面不变），json 的 `audioFileUrl` 指向 FLAC，预处理目录里的 ALAC 副本保留不动。简介里的音源行和「无损转为 FLAC 封装」的说明跟着写。
 
 没有歌词时仍写出 json，并以非 0 退出，方便手动补歌词后再生成视频。封面缺失不算失败。
 
@@ -139,7 +141,7 @@ nub run _prepare -- --audio "王菲.-.1997-03-01.-.菲卖品 王菲精选.-.新�
 | 源 | 做什么 | 备注 |
 | --- | --- | --- |
 | 网易云 | 搜索 + lyric（优先 yrc，否则 lrc+翻译） | 命中后再试 AMLL TTML |
-| QQ 音乐 | `musicu` 搜索 + 明文 lrc（旧搜索接口失败时才回退） | 命中后再试 AMLL TTML；不解密 QRC |
+| QQ 音乐 | `musicu` 搜索 + 明文 lrc（旧搜索接口失败时才回退） | 命中后再试 AMLL TTML；逐字候选解密 QRC |
 | 酷狗 | 搜索；逐字候选解密 KRC 并写成 YRC，否则用明文 lrc | KRC 头 4 字节后异或再 inflate |
 | LRCLIB | `/api/get`（先带专辑再去掉）→ `/api/search` | 只要 synced LRC |
 | AMLL TTML | `amlldb.bikonoo.com/ncm-lyrics\|qq-lyrics/{id}.ttml` | 有平台 ID 才拉 |
@@ -192,5 +194,4 @@ const { jsonPath, hasLyrics } = await writeMaterials({
 
 - 不把整轨切成每首歌一个音频文件
 - 不拉播放地址，也不为 Apple Music 单独做登录。Media-User-Token 放在项目根目录 `.env`，由 nub 读入
-- 不解密 QQ 音乐的加密 QRC
 - 不做持久缓存（只有进程内超时与失败隔离）

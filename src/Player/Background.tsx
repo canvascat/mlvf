@@ -12,20 +12,27 @@ import {
   type BackgroundMotion,
 } from "./background-motion";
 
-export const PlayerBackground: FC<{
+type PlayerBackgroundProps = {
   audioSrc: string;
   coverUrl: string;
   hasLyric: boolean;
   motion?: BackgroundMotion;
-}> = ({ audioSrc, coverUrl, hasLyric, motion }) => {
+};
+
+export const PlayerBackground: FC<PlayerBackgroundProps> = (props) => {
+  // 静止背景用不到低频，也就不必解码音频。ALAC 之类浏览器解不了的编码因此也能预览
+  if (props.motion === "static") {
+    return <BackgroundView {...props} lowFreqVolume={1} />;
+  }
+  return <AnalyzedBackground {...props} />;
+};
+
+const AnalyzedBackground: FC<PlayerBackgroundProps> = (props) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const coreBGRenderRef = useRef<AbstractBaseRenderer | null>(null);
-  const album = coverUrl || undefined;
 
   const { audioData, dataOffsetInSeconds } = useWindowedAudioData({
-    src: audioSrc,
+    src: props.audioSrc,
     frame,
     fps,
     windowInSeconds: 30,
@@ -44,6 +51,17 @@ export const PlayerBackground: FC<{
     const bass = bins.slice(0, 4).reduce((sum, value) => sum + value, 0) / 4;
     lowFreqVolume = Math.min(1, bass * 3);
   }
+
+  return <BackgroundView {...props} lowFreqVolume={lowFreqVolume} />;
+};
+
+const BackgroundView: FC<
+  Omit<PlayerBackgroundProps, "audioSrc"> & { lowFreqVolume: number }
+> = ({ coverUrl, hasLyric, motion, lowFreqVolume }) => {
+  const { fps } = useVideoConfig();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const coreBGRenderRef = useRef<AbstractBaseRenderer | null>(null);
+  const album = coverUrl || undefined;
 
   const backgroundMotion = resolveBackgroundMotion(motion);
   const rendererPropsRef = useRef({
