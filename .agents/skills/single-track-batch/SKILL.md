@@ -43,6 +43,8 @@ echo "DONE ok=$ok fail=$fail"
 
 跑完后停下，先不要导出。读每份 json，用表格汇报 `songName`、`artistName`、`match.lyricFormat`、`match.lyricSource`、`match.coverSource`。没有歌词的也列出，来源写无。终端里的「疑似歌词偏移」只报告，不要加 `--lyric-offset`。用户核对预览并确认毫秒数之后，才对那一首重跑备料并带上 `--lyric-offset`。
 
+终端里的「疑似无效歌词行」也只报告，把行文列给用户，不要加 `--accept-edge-credits`。用户确认这些是署名之后，才对那一首重跑备料并带上 `--accept-edge-credits`。确认后的署名写进默认规则，以后的歌会直接去掉同样的署名。
+
 同一条回复里，按曲序给每首一条预览命令，一首一个代码块。不要替用户启动预览，也不要开始导出。用户确认画面或明确说导出之后，才按下面的导出执行。
 
 ## 预览命令

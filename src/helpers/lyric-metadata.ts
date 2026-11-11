@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { LyricLine } from "@applemusic-like-lyrics/core";
 
 const CREDIT_KEYWORDS = [
@@ -242,8 +244,113 @@ const ROLE_JOINERS = ["and", "和", "与", "與", "及"];
 
 const SPOKEN = /[我你他她它的了吗呢吧啊不没爱在是有这那就都也还会要想说把被让给与和又很太最]/;
 
+const CREDIT_LABEL_HINTS = [
+  "吉它",
+  "曼陀铃",
+  "mandolin",
+  "协力",
+  "assistant",
+  "mastering",
+  "合音",
+  "recorded",
+  "mixed",
+  "sitar",
+  "西塔",
+  "鼓手",
+];
+
+const defaultCreditRulesPath = fileURLToPath(
+  new URL("./confirmed-credit-keys.json", import.meta.url),
+);
+
+const confirmedCreditKeys = new Set<string>(readCreditRuleKeys(defaultCreditRulesPath));
+
+function readCreditRuleKeys(filePath: string): string[] {
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as { keys?: unknown };
+    if (!Array.isArray(parsed.keys)) {
+      return [];
+    }
+    return parsed.keys.filter((key): key is string => typeof key === "string" && key.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function writeCreditRuleKeys(filePath: string): void {
+  const keys = [...confirmedCreditKeys].sort((left, right) => left.localeCompare(right, "zh"));
+  writeFileSync(filePath, `${JSON.stringify({ keys }, null, 2)}\n`);
+}
+
 function normalizeCredit(text: string): string {
   return text.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+}
+
+export function creditLabel(text: string): { key: string; normalized: string } | null {
+  const cleaned = unwrapBrackets(text.trim());
+  const colon = /[:：]/.exec(cleaned);
+  if (!colon || colon.index <= 0) {
+    return null;
+  }
+  const prev = cleaned[colon.index - 1];
+  const next = cleaned[colon.index + 1];
+  if (prev && next && /\d/.test(prev) && /\d/.test(next)) {
+    return null;
+  }
+  const key = cleaned.slice(0, colon.index).trim();
+  const normalized = normalizeCredit(key);
+  if (!key || !cleaned.slice(colon.index + 1).trim() || !normalized) {
+    return null;
+  }
+  return { key, normalized };
+}
+
+function isHintAtom(atom: string): boolean {
+  return atom.length >= 2 && !/^[a-z]{1,2}$/.test(atom);
+}
+
+export function labelSuggestsCredit(key: string): boolean {
+  const normalized = normalizeCredit(unwrapBrackets(key));
+  if (!normalized) {
+    return false;
+  }
+  if (normalized === "监") {
+    return true;
+  }
+  if (CREDIT_LABEL_HINTS.some((hint) => normalized.includes(hint))) {
+    return true;
+  }
+  return ROLE_ATOMS.some((atom) => isHintAtom(atom) && normalized.includes(atom));
+}
+
+export function addConfirmedCreditKeys(
+  lines: readonly string[],
+  filePath = defaultCreditRulesPath,
+): string[] {
+  const added: string[] = [];
+  const seen = new Set<string>();
+  for (const line of lines) {
+    const label = creditLabel(line);
+    if (!label || confirmedCreditKeys.has(label.normalized) || seen.has(label.normalized)) {
+      continue;
+    }
+    seen.add(label.normalized);
+    confirmedCreditKeys.add(label.normalized);
+    added.push(label.key);
+  }
+  if (added.length > 0) {
+    writeCreditRuleKeys(filePath);
+  }
+  return added;
+}
+
+export function dropConfirmedCreditKeys(labels: readonly string[]): void {
+  for (const label of labels) {
+    const normalized = creditLabel(label)?.normalized ?? normalizeCredit(label);
+    if (normalized) {
+      confirmedCreditKeys.delete(normalized);
+    }
+  }
 }
 
 function unwrapBrackets(text: string): string {
@@ -295,7 +402,7 @@ export function isLyricMetadataLine(text: string): boolean {
     if (!key) {
       return false;
     }
-    if (KEYWORD_SET.has(key) || isCreditRoleKey(key)) {
+    if (confirmedCreditKeys.has(key) || KEYWORD_SET.has(key) || isCreditRoleKey(key)) {
       return true;
     }
     for (const keyword of KEYWORD_SET) {

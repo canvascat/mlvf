@@ -1,6 +1,12 @@
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import {
+  findSuspectedEdgeCredits,
+  formatEdgeCreditReport,
+} from "../helpers/lyric-edge-credits";
+import { addConfirmedCreditKeys } from "../helpers/lyric-metadata";
+import { parseLyricText } from "../helpers/lyrics";
 import { prepareCueAlbum } from "./album";
 import { isCuePath } from "./cue";
 import { lookupTrack } from "./lookup";
@@ -43,6 +49,7 @@ const USAGE = `用法: nub run prepare -- --audio <音频或CUE> [--out <目录>
   --artist  覆盖艺术家
   --album   覆盖专辑名
   --lyric-offset  核对后确认的歌词偏移（毫秒）。不传则只报告疑似值，不写入
+  --accept-edge-credits  确认本次报出的首尾疑似署名为无效行，并把冒号左边的署名加入默认规则
   --lyric-format  优先使用的歌词格式：krc、ttml、yrc、qrc、lys、lrc。没有该格式时退回默认选择。krc 是酷狗逐字稿，写出时仍是 yrc
   -h, --help
 `;
@@ -54,6 +61,7 @@ type PrepareArgs = {
   artist?: string;
   album?: string;
   lyricOffset?: number;
+  acceptEdgeCredits?: boolean;
   lyricFormat?: LyricFormatPreference;
 };
 
@@ -66,6 +74,7 @@ function parsePrepareArgs(argv: string[]): PrepareArgs {
     artist?: string;
     album?: string;
     "lyric-offset"?: string;
+    "accept-edge-credits"?: boolean;
     "lyric-format"?: string;
     help?: boolean;
   };
@@ -80,6 +89,7 @@ function parsePrepareArgs(argv: string[]): PrepareArgs {
         artist: { type: "string" },
         album: { type: "string" },
         "lyric-offset": { type: "string" },
+        "accept-edge-credits": { type: "boolean" },
         "lyric-format": { type: "string" },
         help: { type: "boolean", short: "h" },
       },
@@ -122,6 +132,7 @@ function parsePrepareArgs(argv: string[]): PrepareArgs {
     artist: values.artist,
     album: values.album,
     lyricOffset,
+    acceptEdgeCredits: values["accept-edge-credits"],
     lyricFormat,
   };
 }
@@ -204,6 +215,26 @@ async function main() {
       console.log(
         `疑似歌词偏移 ${result.suspectedLyricOffsetMs}ms，未写入。核对后：nub run _prepare -- --audio <音频> --lyric-offset ${result.suspectedLyricOffsetMs}`,
       );
+    }
+    if (result.lyric) {
+      const suspected = findSuspectedEdgeCredits(
+        parseLyricText(result.lyric.content, result.lyric.format),
+        { title: prepared.songName, artists: prepared.artistName },
+      );
+      if (args.acceptEdgeCredits) {
+        if (suspected.length === 0) {
+          console.log("没有疑似无效歌词行");
+        } else {
+          const added = addConfirmedCreditKeys(suspected);
+          console.log(
+            added.length > 0
+              ? ["已加入默认规则：", ...added.map((item) => `  ${item}`)].join("\n")
+              : "这些署名已经在默认规则里",
+          );
+        }
+      } else if (suspected.length > 0) {
+        console.log(formatEdgeCreditReport(prepared.songName, suspected));
+      }
     }
 
     const blurb = await writeVideoBlurb({
