@@ -1,6 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import type { LyricLine } from "@applemusic-like-lyrics/core";
+import creditRules from "./confirmed-credit-keys.json" with { type: "json" };
 
 const CREDIT_KEYWORDS = [
   "词",
@@ -259,27 +258,32 @@ const CREDIT_LABEL_HINTS = [
   "鼓手",
 ];
 
-const defaultCreditRulesPath = fileURLToPath(
-  new URL("./confirmed-credit-keys.json", import.meta.url),
-);
-
-const confirmedCreditKeys = new Set<string>(readCreditRuleKeys(defaultCreditRulesPath));
-
-function readCreditRuleKeys(filePath: string): string[] {
-  try {
-    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as { keys?: unknown };
-    if (!Array.isArray(parsed.keys)) {
-      return [];
-    }
-    return parsed.keys.filter((key): key is string => typeof key === "string" && key.length > 0);
-  } catch {
+function creditRuleKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) {
     return [];
   }
+  return value.filter((key): key is string => typeof key === "string" && key.length > 0);
 }
 
-function writeCreditRuleKeys(filePath: string): void {
-  const keys = [...confirmedCreditKeys].sort((left, right) => left.localeCompare(right, "zh"));
-  writeFileSync(filePath, `${JSON.stringify({ keys }, null, 2)}\n`);
+const confirmedCreditKeys = new Set<string>(creditRuleKeys(creditRules.keys));
+
+export function rememberConfirmedCreditKeys(lines: readonly string[]): string[] {
+  const added: string[] = [];
+  const seen = new Set<string>();
+  for (const line of lines) {
+    const label = creditLabel(line);
+    if (!label || confirmedCreditKeys.has(label.normalized) || seen.has(label.normalized)) {
+      continue;
+    }
+    seen.add(label.normalized);
+    confirmedCreditKeys.add(label.normalized);
+    added.push(label.key);
+  }
+  return added;
+}
+
+export function confirmedCreditKeyList(): string[] {
+  return [...confirmedCreditKeys].sort((left, right) => left.localeCompare(right, "zh"));
 }
 
 function normalizeCredit(text: string): string {
@@ -321,27 +325,6 @@ export function labelSuggestsCredit(key: string): boolean {
     return true;
   }
   return ROLE_ATOMS.some((atom) => isHintAtom(atom) && normalized.includes(atom));
-}
-
-export function addConfirmedCreditKeys(
-  lines: readonly string[],
-  filePath = defaultCreditRulesPath,
-): string[] {
-  const added: string[] = [];
-  const seen = new Set<string>();
-  for (const line of lines) {
-    const label = creditLabel(line);
-    if (!label || confirmedCreditKeys.has(label.normalized) || seen.has(label.normalized)) {
-      continue;
-    }
-    seen.add(label.normalized);
-    confirmedCreditKeys.add(label.normalized);
-    added.push(label.key);
-  }
-  if (added.length > 0) {
-    writeCreditRuleKeys(filePath);
-  }
-  return added;
 }
 
 export function dropConfirmedCreditKeys(labels: readonly string[]): void {

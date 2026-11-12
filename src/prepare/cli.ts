@@ -5,7 +5,7 @@ import {
   findSuspectedEdgeCredits,
   formatEdgeCreditReport,
 } from "../helpers/lyric-edge-credits";
-import { addConfirmedCreditKeys } from "../helpers/lyric-metadata";
+import { addConfirmedCreditKeys } from "../helpers/confirmed-credit-rules";
 import { parseLyricText } from "../helpers/lyrics";
 import { prepareCueAlbum } from "./album";
 import { isCuePath } from "./cue";

@@ -4,8 +4,8 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { addConfirmedCreditKeys } from "./confirmed-credit-rules";
 import {
-  addConfirmedCreditKeys,
   dropConfirmedCreditKeys,
   stripLyricMetadata,
 } from "./lyric-metadata";
