@@ -24,6 +24,8 @@ import {
   type CueStill,
 } from "./mux";
 import type { ExportArgs } from "./parse-args";
+import { writeStudioPreviewOverride } from "./studio-preview-file";
+import type { StudioPreviewOverride } from "../helpers/studio-preview";
 
 function resolveBrowserExecutable(): string | undefined {
   if (process.env.REMOTION_BROWSER_EXECUTABLE) {
@@ -112,28 +114,32 @@ function singleCompositionId(args: ExportArgs): string {
 export async function previewStudio(args: ExportArgs): Promise<void> {
   const tmpDir = await applyProjectTmp();
   if (!args.config) {
+    await writeStudioPreviewOverride(null);
     console.log("正在启动 Remotion Studio 预览默认曲目");
     await runRemotion(["studio", remotionEntry()], tmpDir);
     return;
   }
 
   const job = await prepareExportJob(args);
-  const propsPath = path.join(job.publicDir, "input-props.json");
-  await writeFile(propsPath, JSON.stringify(job.inputProps));
+  const compositionId = singleCompositionId(args);
+  const studioOverride = {
+    compositionId,
+    props: job.inputProps,
+  } as StudioPreviewOverride;
+  await writeStudioPreviewOverride(studioOverride);
 
   console.log(`正在启动 Remotion Studio 预览：《${job.title}》`);
-  const compositionId = singleCompositionId(args);
   console.log(
     `Studio 默认先打开第一个画面，请在左侧选择 ${compositionId}（或直接访问 /${compositionId}）`,
   );
+  console.log("预览参数已写入 defaultProps，右侧面板可查看与编辑");
 
   try {
     await runRemotion(
       [
         "studio",
         remotionEntry(),
-        `--props=${propsPath}`,
-        `--public-dir=${job.publicDir}`,
+        ...(job.ownsPublicDir ? [`--public-dir=${job.publicDir}`] : []),
       ],
       tmpDir,
     );

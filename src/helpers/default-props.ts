@@ -1,6 +1,13 @@
 import { staticFile } from "remotion";
 import oneLastKiss from "../../public/OneLastKiss.json";
 import tiehe from "../../public/周杰伦 - 半岛铁盒.json";
+import { resolveStudioDefault } from "./studio-preview";
+import {
+  ALBUM_COMPOSITION_ID,
+  COMPOSITION_ID,
+  PLAYLIST_COMPOSITION_ID,
+  SPECTRA_COMPOSITION_ID,
+} from "../remotion/constants";
 import type {
   AlbumCompositionProps,
   PlayerCompositionProps,
@@ -41,18 +48,27 @@ const defaultTrack: PlayerCompositionProps = {
   backgroundMotion: "slow",
 };
 
-export const defaultPlaylistProps: PlaylistCompositionProps = {
+const builtInPlaylistProps: PlaylistCompositionProps = {
   tracks: [
     trackFromPrepared(oneLastKiss),
     trackFromPrepared(tiehe),
   ],
 };
 
-export const defaultPlayerProps: PlayerCompositionProps = defaultTrack;
+const builtInSpectraProps: SpectraCompositionProps =
+  trackFromPrepared(oneLastKiss);
 
-export const defaultSpectraProps: SpectraCompositionProps = trackFromPrepared(oneLastKiss);
+export const defaultPlayerProps: PlayerCompositionProps = resolveStudioDefault(
+  COMPOSITION_ID,
+  defaultTrack,
+);
 
-export const defaultAlbumProps: AlbumCompositionProps = {
+export const defaultSpectraProps: SpectraCompositionProps = resolveStudioDefault(
+  SPECTRA_COMPOSITION_ID,
+  builtInSpectraProps,
+);
+
+const builtInAlbumProps: AlbumCompositionProps = {
   audioFileUrl: defaultTrack.audioFileUrl,
   coverImageUrl: defaultTrack.coverImageUrl,
   artistName: defaultTrack.artistName,
@@ -65,3 +81,11 @@ export const defaultAlbumProps: AlbumCompositionProps = {
     },
   ],
 };
+
+export const defaultPlaylistProps: PlaylistCompositionProps =
+  resolveStudioDefault(PLAYLIST_COMPOSITION_ID, builtInPlaylistProps);
+
+export const defaultAlbumProps: AlbumCompositionProps = resolveStudioDefault(
+  ALBUM_COMPOSITION_ID,
+  builtInAlbumProps,
+);

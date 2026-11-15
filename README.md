@@ -77,7 +77,7 @@ nub run export -- tmp/mdl/<歌单ID>/export.json --playlist --preview
 nub run export -- <配置.json> --preview
 ```
 
-会建临时 `public` 目录，不改仓库里的 `public/`。不传配置时打开默认曲目：
+会建临时 `public` 目录，不改仓库里的 `public/`。同时把这份配置的 props 写入 `src/helpers/studio-preview.generated.ts`，作为对应 Composition 的 `defaultProps`，Studio 右侧面板会显示并可编辑这些字段（不再用 CLI `--props`）。`npm run dev` 会清掉这份覆盖，恢复内置默认曲目。不传配置时打开默认曲目：
 
 ```console
 nub run dev

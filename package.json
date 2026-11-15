@@ -41,7 +41,7 @@
 		"typescript": "5.9.3"
 	},
 	"scripts": {
-		"dev": "mkdir -p tmp && TMPDIR=\"$PWD/tmp\" remotion studio",
+		"dev": "mkdir -p tmp && nub src/export/reset-studio-preview.ts && TMPDIR=\"$PWD/tmp\" remotion studio",
 		"export": "nub src/export/cli.ts",
 		"_prepare": "nub src/prepare/cli.ts",
 		"build": "remotion bundle",
