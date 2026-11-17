@@ -25,6 +25,31 @@ function candidate(partial: Partial<LyricCandidate>): LyricCandidate {
   };
 }
 
+const SYLLABLE_TTML =
+  '<tt><body><p><span begin="0s">我</span><span begin="0.2s">愿</span><span begin="0.4s">意</span></p></body></tt>';
+
+const WORD_QRC = `[0,3000]我(0,300)愿(300,300)意(600,300)
+[3000,3000]第(3000,300)二(3300,300)句(3600,300)
+[6000,3000]三(6000,300)行(6300,300)词(6600,300)`;
+
+const WORD_YRC =
+  "[1000,2000](1000,400,0)我(1400,400,0)愿(1800,800,0)意\n" +
+  "[3000,2000](3000,400,0)第(3400,400,0)二(3800,800,0)句\n" +
+  "[5000,2000](5000,400,0)三(5400,400,0)行(5800,800,0)词\n";
+
+function defaultLyricContent(format: ProviderLyric["format"]): string {
+  switch (format) {
+    case "ttml":
+      return SYLLABLE_TTML;
+    case "qrc":
+      return WORD_QRC;
+    case "yrc":
+      return WORD_YRC;
+    default:
+      return "[00:00.00]test";
+  }
+}
+
 function hit(
   format: ProviderLyric["format"],
   partial: Partial<LyricCandidate>,
@@ -33,7 +58,7 @@ function hit(
   return {
     source,
     format,
-    content: "[00:00.00]test",
+    content: defaultLyricContent(format),
     candidate: candidate(partial),
   };
 }
@@ -217,7 +242,7 @@ test("已经有 ttml 才跳过歌词搜索", () => {
   assert.equal(shouldSearchLyrics({ format: "ttml" }), false);
 });
 
-test("默认同 splayer：更高格式压过更贴时长的低格式", () => {
+test("逐字须时长合格：高档偏差大时让位更贴时长的逐字", () => {
   const all = pickBestLyric(
     [
       hit("yrc", { duration: 274_000 }, "netease"),
@@ -228,7 +253,8 @@ test("默认同 splayer：更高格式压过更贴时长的低格式", () => {
     ],
     query,
   );
-  assert.equal(all?.format, "ttml");
+  assert.equal(all?.format, "yrc");
+  assert.equal(all?.source, "netease");
 
   const withoutTtml = pickBestLyric(
     [
@@ -237,7 +263,8 @@ test("默认同 splayer：更高格式压过更贴时长的低格式", () => {
     ],
     query,
   );
-  assert.equal(withoutTtml?.format, "qrc");
+  assert.equal(withoutTtml?.format, "yrc");
+  assert.equal(withoutTtml?.source, "netease");
 
   const withoutQrc = pickBestLyric(
     [
@@ -246,7 +273,31 @@ test("默认同 splayer：更高格式压过更贴时长的低格式", () => {
     ],
     query,
   );
-  assert.equal(withoutQrc?.source, "kugou");
+  assert.equal(withoutQrc?.source, "netease");
+});
+
+test("同档逐字里先比时长", () => {
+  const chosen = pickBestLyric(
+    [
+      hit("ttml", { duration: 273_500 }, "amll-ttml"),
+      hit("ttml", { duration: 274_100 }, "apple-ttml"),
+    ],
+    query,
+  );
+  assert.equal(chosen?.candidate.duration, 274_100);
+  assert.equal(chosen?.source, "apple-ttml");
+});
+
+test("所有逐字时长都不合格时退回整行 LRC", () => {
+  const chosen = pickBestLyric(
+    [
+      hit("lrc", { duration: 274_000 }, "embedded"),
+      hit("ttml", { duration: 260_000 }, "amll-ttml"),
+    ],
+    query,
+  );
+  assert.equal(chosen?.format, "lrc");
+  assert.equal(chosen?.source, "embedded");
 });
 
 test("时长接近时 ttml 压过内嵌 lrc", () => {
@@ -259,4 +310,21 @@ test("时长接近时 ttml 压过内嵌 lrc", () => {
   );
   assert.equal(chosen?.format, "ttml");
   assert.equal(chosen?.source, "amll-ttml");
+});
+
+test("仅逐行的 ttml 不算逐字，让给 qrc", () => {
+  const lineOnly =
+    '<tt itunes:timing="Line"><body><p begin="0s" end="3s">我愿意</p></body></tt>';
+  const chosen = pickBestLyric(
+    [
+      {
+        ...hit("ttml", { duration: 274_000 }, "apple-ttml"),
+        content: lineOnly,
+      },
+      hit("qrc", { duration: 274_000 }, "qqmusic"),
+    ],
+    query,
+  );
+  assert.equal(chosen?.format, "qrc");
+  assert.equal(chosen?.source, "qqmusic");
 });

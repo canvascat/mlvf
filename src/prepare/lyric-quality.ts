@@ -64,3 +64,48 @@ export function validateLyric(
     return false;
   }
 }
+
+/** Apple TTML 带 span 的 begin/end 才算逐字，仅有逐行 `<p>` 不算。 */
+export function isSyllableTtml(ttml: string): boolean {
+  return /<span\b[^>]*\b(begin|end)\s*=/i.test(ttml);
+}
+
+function parsedLineHasWordTiming(
+  line: { words: Array<{ word: string; startTime?: number }> },
+): boolean {
+  const raw = line.words.filter((word) => word.word.trim() !== "");
+  if (raw.length < 2) {
+    return false;
+  }
+  const starts = new Set(raw.map((word) => word.startTime));
+  return starts.size >= 2;
+}
+
+/** 内容是否真逐字（不是仅格式名叫 ttml/yrc）。 */
+export function hasWordLevelTiming(
+  content: string,
+  format: LyricFormat,
+): boolean {
+  if (format === "lrc") {
+    return false;
+  }
+  if (format === "ttml") {
+    return isSyllableTtml(content);
+  }
+  try {
+    const lines = parseLyricText(content, format);
+    let wordLines = 0;
+    for (const line of lines) {
+      const text = line.words.map((word) => word.word).join("").trim();
+      if (!text || isLyricCreditLine(text)) {
+        continue;
+      }
+      if (parsedLineHasWordTiming(line)) {
+        wordLines += 1;
+      }
+    }
+    return wordLines >= 3;
+  } catch {
+    return false;
+  }
+}

@@ -1,4 +1,8 @@
-import { lyricSelectionRank } from "./lyric-quality";
+import {
+  hasWordLevelTiming,
+  lyricFormatRank,
+  lyricSelectionRank,
+} from "./lyric-quality";
 import type { LyricCandidate, ProviderLyric, TrackQuery } from "./types";
 
 const LYRIC_FORMAT_PREFERENCES = ["krc", "ttml", "yrc", "qrc", "lys", "lrc"] as const;
@@ -248,7 +252,56 @@ function queryForLyricScore(
   return query;
 }
 
-function selectLyric(
+/** 逐字稿：格式档位高于 LRC，且内容带字级时间。 */
+export function isWordLevelLyric(hit: ProviderLyric): boolean {
+  if (lyricSelectionRank(hit) <= lyricFormatRank("lrc")) {
+    return false;
+  }
+  return hasWordLevelTiming(hit.content, hit.format);
+}
+
+function shouldReplaceLyricPick(
+  hit: ProviderLyric,
+  best: ProviderLyric,
+  hitDelta: number,
+  bestDelta: number,
+  hitRank: number,
+  bestRank: number,
+  hitScore: number,
+  bestScore: number,
+): boolean {
+  const hitWord = isWordLevelLyric(hit);
+  const bestWord = isWordLevelLyric(best);
+  if (hitWord && !bestWord) {
+    return true;
+  }
+  if (!hitWord && bestWord) {
+    return false;
+  }
+  const closer = hitDelta < bestDelta - DURATION_SIMILAR_MS;
+  const farther = hitDelta > bestDelta + DURATION_SIMILAR_MS;
+  if (closer) {
+    return true;
+  }
+  if (farther) {
+    return false;
+  }
+  if (hitRank === bestRank && hitDelta < bestDelta) {
+    return true;
+  }
+  if (hitRank === bestRank && hitDelta > bestDelta) {
+    return false;
+  }
+  if (hitRank > bestRank) {
+    return true;
+  }
+  if (hitRank < bestRank) {
+    return false;
+  }
+  return hitScore > bestScore;
+}
+
+function selectAmongEligible(
   hits: readonly ProviderLyric[],
   query: TrackQuery,
 ): ProviderLyric | null {
@@ -268,13 +321,18 @@ function selectLyric(
     const delta =
       durationDeltaMs(hit.candidate, query) ?? Number.POSITIVE_INFINITY;
     const rank = lyricSelectionRank(hit);
-    const closer = delta < bestDelta - DURATION_SIMILAR_MS;
-    const farther = delta > bestDelta + DURATION_SIMILAR_MS;
-    const sameFormat = rank === bestRank;
     if (
       !best ||
-      rank > bestRank ||
-      (sameFormat && (closer || (!farther && score > bestScore)))
+      shouldReplaceLyricPick(
+        hit,
+        best,
+        delta,
+        bestDelta,
+        rank,
+        bestRank,
+        score,
+        bestScore,
+      )
     ) {
       best = hit;
       bestDelta = delta;
@@ -285,16 +343,52 @@ function selectLyric(
   return best;
 }
 
+function durationIsGuaranteed(
+  hit: ProviderLyric,
+  query: TrackQuery,
+): boolean {
+  const delta = durationDeltaMs(hit.candidate, query);
+  return delta === undefined || delta <= DURATION_CLOSE_MS;
+}
+
+function selectLyric(
+  hits: readonly ProviderLyric[],
+  query: TrackQuery,
+  requireCloseDuration = true,
+): ProviderLyric | null {
+  const eligible = hits.filter(
+    (hit) =>
+      scoreCandidate(hit.candidate, queryForLyricScore(hit, query)) >= 0,
+  );
+  const wordEligible = eligible.filter((hit) => {
+    if (!isWordLevelLyric(hit)) {
+      return false;
+    }
+    return requireCloseDuration
+      ? durationIsGuaranteed(hit, query)
+      : true;
+  });
+  const word = selectAmongEligible(wordEligible, query);
+  if (word) {
+    return word;
+  }
+  const line = eligible.filter((hit) => !isWordLevelLyric(hit));
+  return selectAmongEligible(line, query);
+}
+
 export function pickBestLyric(
   hits: readonly ProviderLyric[],
   query: TrackQuery,
   preference?: LyricFormatPreference,
 ): ProviderLyric | null {
   if (!preference) {
-    return selectLyric(hits, query);
+    return selectLyric(hits, query, true);
   }
   const preferred = hits.filter((hit) =>
     lyricMatchesPreference(hit, preference),
   );
-  return selectLyric(preferred, query) ?? selectLyric(hits, query);
+  return (
+    selectLyric(preferred, query, false) ??
+    selectLyric(hits, query, true)
+  );
 }

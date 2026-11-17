@@ -134,7 +134,7 @@ nub run _prepare -- --audio "王菲.-.1997-03-01.-.菲卖品 王菲精选.-.新�
 
 - 硬条件：曲名全等或足够长的双向包含；双方都有时长则差距不超过 20s；有歌手时必须命中至少一个歌手
 - 打分：曲名全等 +10 / 子串 +4；歌手全等 +5 / 包含 +2；专辑全等 +2；时长 ±5s +3
-- 跨源：先丢掉时长差超过 20s 的候选。剩下的里 **逐字（TTML / YRC / QRC）压过整行 LRC**，即使整行更贴时长。同是逐字或同是整行时，才先比时长（差 2s 以上视为不同版本），再比格式 **TTML > YRC/QRC > LRC**，最后比分数。
+- 跨源：先丢掉时长差超过 20s 的候选。在时长偏差 ≤5s 的 **逐字** 候选里先比时长（差 2s 以上视为不同版本），再比格式 **TTML > LYS > QRC > 酷狗 YRC > YRC**，最后比分数；逐字压过更贴的整行 LRC。没有合格逐字时，再在整行 LRC 里同样按时长、分数选。`--lyric-format` 指定格式时只要求通过 20s 硬条件。
 - `--lyric-format` 会先只在该格式里按上面的规则挑；一份都没有，或都对不上这首歌时，退回默认选择并在终端说明。`krc` 只认酷狗解密出来的逐字稿，不认酷狗整行 LRC，也不认其它源的 YRC。
 
 时长仍可能和这张碟对不齐（精选/不同前奏）。选出版本后会用 200–4000 Hz 人声频段的能量做成「唱没唱」包络，和这份歌词的起唱点滑动对齐，只在终端报告疑似偏移，**不写入**配置。核对预览后，用同一份歌词再跑 `--lyric-offset <毫秒>` 才会写入 `lyricOffsetMs`。偏移跟这次写出的歌词绑在一起；换了歌词必须重新备料，旧偏移不会沿用。结构完全不同的版本不会报偏移。
@@ -148,7 +148,7 @@ nub run _prepare -- --audio "王菲.-.1997-03-01.-.菲卖品 王菲精选.-.新�
 | 酷狗 | 搜索；逐字候选解密 KRC 并写成 YRC，否则用明文 lrc | KRC 头 4 字节后异或再 inflate |
 | LRCLIB | `/api/get`（先带专辑再去掉）→ `/api/search` | 只要 synced LRC |
 | AMLL TTML | `amlldb.bikonoo.com/ncm-lyrics\|qq-lyrics/{id}.ttml` | 有平台 ID 才拉 |
-| Apple Music TTML | `amp-api` 的 `syllable-lyrics` | 配置了 Media-User-Token 才拉。`nub.jsonc` 的 `envFile` 指向项目根目录 `.env`，`nub` 启动时把它读进环境变量，备料只看 `MEDIA_USER_TOKEN`。`.env` 已在 git 忽略里。账号地区用 `APPLE_MUSIC_STOREFRONT`，没有就读 `/me/storefront`。搜索账号曲库以及 `cn`、`tw`、`jp`。只要带逐字时间的 TTML；专辑版只有逐行时，改用同一 ISRC 的 Single 逐字稿。开发者 token 从 `music.apple.com` 的网页播放器里取，进程内复用 |
+| Apple Music TTML | `amp-api` 的 `syllable-lyrics` | 配置了 Media-User-Token 才拉。`nub.jsonc` 的 `envFile` 指向项目根目录 `.env`，`nub` 启动时把它读进环境变量，备料只看 `MEDIA_USER_TOKEN`。`.env` 已在 git 忽略里。账号地区用 `APPLE_MUSIC_STOREFRONT`，没有就读 `/me/storefront`。搜索账号曲库以及 `cn`、`tw`、`jp`。只要带 `<span begin>` 的真逐字 TTML；仅 `itunes:timing="Line"` 的逐行稿会丢弃并换源。专辑版只有逐行时，改用同一 ISRC 的 Single 逐字稿。开发者 token 从 `music.apple.com` 的网页播放器里取，进程内复用 |
 | iTunes Search | 补封面（600×600）和仍空的身份字段 | 并行查默认店 + hk + jp；罗马音歌手名放宽匹配 |
 
 ## 库函数

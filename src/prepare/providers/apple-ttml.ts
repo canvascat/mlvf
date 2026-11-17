@@ -1,6 +1,6 @@
 import { scoreCandidate } from "../match";
 import { fetchRaw, mergeSignals } from "../http";
-import { validateLyric } from "../lyric-quality";
+import { isSyllableTtml, validateLyric } from "../lyric-quality";
 import type { ProviderLyric, TrackQuery } from "../types";
 import {
   readAppleMusicAuth,
@@ -512,9 +512,7 @@ export function preferSingleTwins(songs: readonly AppleSong[]): AppleSong[] {
   });
 }
 
-export function isSyllableTtml(ttml: string): boolean {
-  return /<span\b[^>]*\b(begin|end)\s*=/i.test(ttml);
-}
+export { isSyllableTtml };
 
 export function pickTtml(body: AmpBody | null): string {
   const attributes = body?.data?.[0]?.attributes;
@@ -738,7 +736,7 @@ async function appleLyricFromSong(
   if (!validateLyric(content, "ttml")) {
     return null;
   }
-  if (!isSyllableTtml(content) && !syllable.line) {
+  if (!isSyllableTtml(content)) {
     return null;
   }
   return { content, songId };

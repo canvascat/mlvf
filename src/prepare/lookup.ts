@@ -116,9 +116,11 @@ export async function lookupTrack(options: {
       : tags.durationInSeconds;
 
   const query: TrackQuery = {
-    title: resolveQueryTitle(tags, options.audioPath, options.title),
-    artist: firstNonBlank(options.artist, tags.artist),
-    album: firstNonBlank(options.album, tags.album),
+    title: prepareDisplayText(
+      resolveQueryTitle(tags, options.audioPath, options.title),
+    ),
+    artist: prepareDisplayText(firstNonBlank(options.artist, tags.artist)),
+    album: prepareDisplayText(firstNonBlank(options.album, tags.album)),
     durationMs: Math.round(trackDuration * 1000),
   };
   const keyword = buildSearchKeyword(query);
