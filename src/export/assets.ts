@@ -344,6 +344,43 @@ async function preparePlaylistExportJob(args: ExportArgs): Promise<ExportJob> {
   };
 }
 
+export async function prepareSingleTrackExportJob(
+  args: ExportArgs,
+  publicDir: string,
+): Promise<ExportJob> {
+  if (!args.config) {
+    throw new Error("需要配置文件");
+  }
+  const loaded = await loadPreparedConfig(args.config, { lyrics: true });
+  if (loaded.tracks.length !== 1) {
+    throw new UsageError(
+      `单曲预览只支持 1 首，这份配置有 ${loaded.tracks.length} 首`,
+    );
+  }
+  await mkdir(publicDir, { recursive: true });
+  const cache = createAssetCache();
+  const materialized = await materializeTrack({
+    index: 0,
+    track: loaded.tracks[0]!,
+    publicDir,
+    fps: args.fps,
+    cache,
+    lyrics: true,
+  });
+  return {
+    publicDir,
+    ownsPublicDir: false,
+    title: loaded.title,
+    fps: args.fps,
+    durationInFrames: Math.max(1, materialized.durationInFrames),
+    outputPath: losslessOutputPath(
+      args.out ?? defaultOutputPath(loaded.title),
+    ),
+    sourceAudios: [materialized.sourceAudio],
+    inputProps: singleTrackProps([materialized], args.background),
+  };
+}
+
 export async function prepareExportJob(args: ExportArgs): Promise<ExportJob> {
   if (!args.config) {
     throw new Error("需要配置文件");

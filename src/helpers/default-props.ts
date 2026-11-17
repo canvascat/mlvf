@@ -58,15 +58,18 @@ const builtInPlaylistProps: PlaylistCompositionProps = {
 const builtInSpectraProps: SpectraCompositionProps =
   trackFromPrepared(oneLastKiss);
 
-export const defaultPlayerProps: PlayerCompositionProps = resolveStudioDefault(
-  COMPOSITION_ID,
-  defaultTrack,
-);
+export function buildDefaultPlayerProps(): PlayerCompositionProps {
+  return resolveStudioDefault(COMPOSITION_ID, defaultTrack);
+}
 
-export const defaultSpectraProps: SpectraCompositionProps = resolveStudioDefault(
-  SPECTRA_COMPOSITION_ID,
-  builtInSpectraProps,
-);
+export const defaultPlayerProps: PlayerCompositionProps = buildDefaultPlayerProps();
+
+export function buildDefaultSpectraProps(): SpectraCompositionProps {
+  return resolveStudioDefault(SPECTRA_COMPOSITION_ID, builtInSpectraProps);
+}
+
+export const defaultSpectraProps: SpectraCompositionProps =
+  buildDefaultSpectraProps();
 
 const builtInAlbumProps: AlbumCompositionProps = {
   audioFileUrl: defaultTrack.audioFileUrl,
@@ -82,10 +85,15 @@ const builtInAlbumProps: AlbumCompositionProps = {
   ],
 };
 
-export const defaultPlaylistProps: PlaylistCompositionProps =
-  resolveStudioDefault(PLAYLIST_COMPOSITION_ID, builtInPlaylistProps);
+export function buildDefaultPlaylistProps(): PlaylistCompositionProps {
+  return resolveStudioDefault(PLAYLIST_COMPOSITION_ID, builtInPlaylistProps);
+}
 
-export const defaultAlbumProps: AlbumCompositionProps = resolveStudioDefault(
-  ALBUM_COMPOSITION_ID,
-  builtInAlbumProps,
-);
+export const defaultPlaylistProps: PlaylistCompositionProps =
+  buildDefaultPlaylistProps();
+
+export function buildDefaultAlbumProps(): AlbumCompositionProps {
+  return resolveStudioDefault(ALBUM_COMPOSITION_ID, builtInAlbumProps);
+}
+
+export const defaultAlbumProps: AlbumCompositionProps = buildDefaultAlbumProps();

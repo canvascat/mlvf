@@ -55,6 +55,12 @@ echo "DONE ok=$ok fail=$fail"
 nub run export -- "预处理/<源目录名>/<音频主名>.json" --preview
 ```
 
+专辑目录批量预览（Studio 常开，终端 `j`/`k` 切歌、`r` 刷新）：
+
+```console
+nub run album-preview -- "预处理/<源目录名>"
+```
+
 ## 导出
 
 用户要导出命令时，打印命令并停下。备料后的歌词来源和预览命令已经给出，并且用户确认可以导出或明确说执行时，才开始跑。

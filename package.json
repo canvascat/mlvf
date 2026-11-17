@@ -43,6 +43,7 @@
 	"scripts": {
 		"dev": "mkdir -p tmp && nub src/export/reset-studio-preview.ts && TMPDIR=\"$PWD/tmp\" remotion studio",
 		"export": "nub src/export/cli.ts",
+		"album-preview": "nub src/export/album-preview.ts",
 		"_prepare": "nub src/prepare/cli.ts",
 		"build": "remotion bundle",
 		"upgrade": "remotion upgrade",
