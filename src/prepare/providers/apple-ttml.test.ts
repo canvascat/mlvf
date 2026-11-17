@@ -52,7 +52,11 @@ test("从环境变量读出 Media-User-Token", () => {
 });
 
 test("歌手别名会扩出另一套搜索词", () => {
-  assert.deepEqual(expandSearchKeywords("倔强 五月天"), ["倔强 五月天", "倔强 Mayday"]);
+  assert.deepEqual(expandSearchKeywords("倔强 五月天"), [
+    "倔强 五月天",
+    "五月天 倔强",
+    "倔强 Mayday",
+  ]);
 });
 
 test("曲名对上时把关键词里的歌手补进候选", () => {
@@ -61,6 +65,14 @@ test("曲名对上时把关键词里的歌手补进候选", () => {
     song({ id: "1", singer: "Faye Wong" }),
   );
   assert.match(matched, /王菲/);
+});
+
+test("曲名相同的不同歌手不会吸收搜索词里的歌手", () => {
+  const matched = artistForMatch(
+    "漂着 陈绮贞",
+    song({ id: "1", name: "漂着", singer: "杨乃文" }),
+  );
+  assert.equal(matched, "杨乃文");
 });
 
 test("外区曲目用 ISRC 对到账号曲库", () => {

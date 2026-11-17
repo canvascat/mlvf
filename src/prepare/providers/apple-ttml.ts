@@ -14,7 +14,7 @@ const BUNDLE_RE = /["'](\/assets\/index~[A-Za-z0-9]+\.js)["']/;
 const JWT_RE =
   /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g;
 
-const SEARCH_LIMIT = 10;
+const SEARCH_LIMIT = 25;
 const SEARCH_TIMEOUT_MS = 4500;
 const HOME_TIMEOUT_MS = 20_000;
 const BUNDLE_TIMEOUT_MS = 45_000;
@@ -311,6 +311,13 @@ export function expandSearchKeywords(keyword: string): string[] {
     keywords.push(simplified);
   }
   for (const current of [...keywords]) {
+    const parts = current.split(/\s+/).filter(Boolean);
+    if (parts.length === 2) {
+      const reversed = `${parts[1]} ${parts[0]}`;
+      if (!keywords.includes(reversed)) {
+        keywords.push(reversed);
+      }
+    }
     for (const entry of ALIAS_ENTRIES) {
       if (current.toLowerCase().includes(entry.raw.toLowerCase())) {
         const expanded = current.replace(
@@ -359,9 +366,15 @@ export function artistForMatch(keyword: string, song: AppleSong): string {
   const flatKeyword = normalizeKey(stripFeat(keyword));
   const flatName = normalizeKey(stripFeat(song.name));
   if (flatName && flatKeyword.startsWith(flatName)) {
-    const rest = flatKeyword.slice(flatName.length);
-    if (rest.length >= 2 && !normalizeKey(singer).includes(rest)) {
-      singer = `${singer}/${rest}`;
+    const restText = stripFeat(keyword).slice(song.name.length).trim();
+    const rest = normalizeKey(restText);
+    if (
+      rest.length >= 2 &&
+      !normalizeKey(singer).includes(rest) &&
+      !/[\u4e00-\u9fff]/.test(singer) &&
+      /[\u4e00-\u9fff]/.test(restText)
+    ) {
+      singer = `${singer}/${restText}`;
     }
   }
   for (const entry of ALIAS_ENTRIES) {
@@ -592,6 +605,145 @@ async function searchStorefront(
     .filter((song): song is AppleSong => song !== null);
 }
 
+function titleKeysMatch(left: string, right: string): boolean {
+  const a = normalizeKey(left);
+  const b = normalizeKey(right);
+  return (
+    a.length > 0 && b.length > 0 && (a === b || a.includes(b) || b.includes(a))
+  );
+}
+
+function artistMatchesQuery(singer: string, queryArtist: string): boolean {
+  const query = normalizeKey(queryArtist);
+  if (!query) {
+    return true;
+  }
+  const parts = singer
+    .split(/[、&;，,/|·・/]+/g)
+    .map((part) => normalizeKey(part))
+    .filter(Boolean);
+  return (
+    parts.some((part) => part === query || part.includes(query) || query.includes(part)) ||
+    normalizeKey(singer).includes(query)
+  );
+}
+
+async function searchAlbumTracks(
+  storefront: string,
+  query: TrackQuery,
+  mediaUserToken: string,
+  signal: AbortSignal | undefined,
+): Promise<AppleSong[]> {
+  const searches = [
+    `${query.artist} ${query.title}`,
+    ...(query.album.trim()
+      ? [`${query.artist} ${query.album.trim()}`]
+      : []),
+  ];
+  const found: AppleSong[] = [];
+  for (const term of searches) {
+    const path = `/catalog/${storefront}/search?term=${encodeURIComponent(term)}&types=albums&limit=10`;
+    const response = await ampRequestWithRetry(path, mediaUserToken, signal);
+    if (response.status !== 200) {
+      continue;
+    }
+    const albums =
+      (
+        response.body as AmpBody & {
+          results?: {
+            albums?: {
+              data?: Array<{
+                id?: string | number;
+                attributes?: { artistName?: string; name?: string };
+              }>;
+            };
+          };
+        }
+      ).results?.albums?.data ?? [];
+    for (const album of albums) {
+      const artist = album.attributes?.artistName ?? "";
+      if (!normalizeKey(artist).includes(normalizeKey(query.artist))) {
+        continue;
+      }
+      if (album.id == null) {
+        continue;
+      }
+      const tracksResponse = await ampRequestWithRetry(
+        `/catalog/${storefront}/albums/${album.id}/tracks?limit=100`,
+        mediaUserToken,
+        signal,
+        12_000,
+      );
+      if (tracksResponse.status !== 200) {
+        continue;
+      }
+      for (const item of tracksResponse.body?.data ?? []) {
+        const track = toSearchSong(item, storefront);
+        if (
+          track &&
+          titleKeysMatch(track.name, query.title) &&
+          artistMatchesQuery(track.singer, query.artist)
+        ) {
+          found.push(track);
+        }
+      }
+    }
+    if (found.length > 0) {
+      break;
+    }
+  }
+  return found;
+}
+
+async function appleLyricFromSong(
+  song: AppleSong,
+  storefront: string,
+  mediaUserToken: string,
+  signal: AbortSignal | undefined,
+): Promise<{ content: string; songId: string } | null> {
+  const songId = await resolveAccountSongId(
+    song,
+    storefront,
+    mediaUserToken,
+    signal,
+  );
+  if (!songId) {
+    return null;
+  }
+  const syllable = await readSyllable(
+    storefront,
+    songId,
+    mediaUserToken,
+    signal,
+  );
+  if (!syllable) {
+    return null;
+  }
+  let content = syllable.ttml;
+  if (syllable.line) {
+    const isrc = song.isrc || syllable.isrc;
+    const upgraded = isrc
+      ? await upgradeFromTwin(
+          storefront,
+          songId,
+          isrc,
+          mediaUserToken,
+          signal,
+        )
+      : null;
+    if (upgraded) {
+      content = upgraded;
+    }
+  }
+  if (!validateLyric(content, "ttml")) {
+    return null;
+  }
+  if (!isSyllableTtml(content) && !syllable.line) {
+    return null;
+  }
+  return { content, songId };
+}
+
 async function resolveAccountSongId(
   song: AppleSong,
   accountStorefront: string,
@@ -721,64 +873,46 @@ export async function lookupAppleTtml(
         ),
       ),
     );
-    const best = orderAppleSongs(
-      mergeAppleSongs(groups.flat(), storefront, keyword),
+    const albumTracks = await searchAlbumTracks(
+      storefront,
       query,
+      auth.mediaUserToken,
+      parentSignal,
+    );
+    const rankingQuery = { ...query, durationMs: undefined };
+    const ranked = orderAppleSongs(
+      mergeAppleSongs(
+        [...groups.flat(), ...albumTracks],
+        storefront,
+        keyword,
+      ),
+      rankingQuery,
       keyword,
-    )[0];
-    if (!best) {
-      return null;
-    }
-    const songId = await resolveAccountSongId(
-      best,
-      storefront,
-      auth.mediaUserToken,
-      parentSignal,
     );
-    if (!songId) {
-      return null;
-    }
-    const syllable = await readSyllable(
-      storefront,
-      songId,
-      auth.mediaUserToken,
-      parentSignal,
-    );
-    if (!syllable) {
-      return null;
-    }
-    let content = syllable.ttml;
-    if (syllable.line) {
-      const isrc = best.isrc || syllable.isrc;
-      const upgraded = isrc
-        ? await upgradeFromTwin(
-            storefront,
-            songId,
-            isrc,
-            auth.mediaUserToken,
-            parentSignal,
-          )
-        : null;
-      if (!upgraded) {
-        return null;
+    for (const song of ranked.slice(0, 12)) {
+      const lyric = await appleLyricFromSong(
+        song,
+        storefront,
+        auth.mediaUserToken,
+        parentSignal,
+      );
+      if (!lyric) {
+        continue;
       }
-      content = upgraded;
+      return {
+        source: "apple-ttml",
+        format: "ttml",
+        content: lyric.content,
+        candidate: {
+          name: song.name,
+          artist: artistForMatch(keyword, song),
+          album: song.album,
+          duration: song.durationMs,
+          extra: { appleId: lyric.songId },
+        },
+      };
     }
-    if (!isSyllableTtml(content) || !validateLyric(content, "ttml")) {
-      return null;
-    }
-    return {
-      source: "apple-ttml",
-      format: "ttml",
-      content,
-      candidate: {
-        name: best.name,
-        artist: artistForMatch(keyword, best),
-        album: best.album,
-        duration: best.durationMs,
-        extra: { appleId: songId },
-      },
-    };
+    return null;
   } catch (error) {
     if (error instanceof AppleMusicTokenError) {
       tokenRejected = true;
