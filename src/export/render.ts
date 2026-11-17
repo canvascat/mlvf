@@ -26,6 +26,7 @@ import {
 import type { ExportArgs } from "./parse-args";
 import { writeStudioPreviewOverride } from "./studio-preview-file";
 import type { StudioPreviewOverride } from "../helpers/studio-preview";
+import { stopRemotionStudioBeforeExport } from "./studio-guard";
 
 function resolveBrowserExecutable(): string | undefined {
   if (process.env.REMOTION_BROWSER_EXECUTABLE) {
@@ -241,6 +242,7 @@ async function writeAlbumChapterSidecar(
 }
 
 export async function exportVideo(args: ExportArgs): Promise<string> {
+  await stopRemotionStudioBeforeExport();
   const tmpDir = await applyProjectTmp();
   const job = await prepareExportJob(args);
   const outputLocation = path.resolve(job.outputPath);
