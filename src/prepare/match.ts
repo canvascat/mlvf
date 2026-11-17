@@ -238,6 +238,16 @@ export function shouldSearchLyrics(
   return embedded?.format !== "ttml";
 }
 
+function queryForLyricScore(
+  hit: ProviderLyric,
+  query: TrackQuery,
+): TrackQuery {
+  if (hit.source === "apple-ttml") {
+    return { ...query, durationMs: undefined };
+  }
+  return query;
+}
+
 function selectLyric(
   hits: readonly ProviderLyric[],
   query: TrackQuery,
@@ -248,7 +258,10 @@ function selectLyric(
   let bestScore = -1;
 
   for (const hit of hits) {
-    const score = scoreCandidate(hit.candidate, query);
+    const score = scoreCandidate(
+      hit.candidate,
+      queryForLyricScore(hit, query),
+    );
     if (score < 0) {
       continue;
     }
