@@ -118,6 +118,20 @@ test("去掉开头用和连接的制作署名和母带处理", () => {
   assert.deepEqual(texts(cleaned), ["帽子落在他下巴", "桌面卧着剑一把"]);
 });
 
+test("去掉原诗与改编词署名", () => {
+  const cleaned = stripLyricMetadata(
+    [
+      line("太多 (Live) - 陈绮贞"),
+      line("原诗：鸿鸿"),
+      line("改编词：陈绮贞"),
+      line("曲：陈绮贞"),
+      line("喜欢一个人孤独的时刻", 31_560),
+    ],
+    { title: "太多", artists: "陈绮贞" },
+  );
+  assert.deepEqual(texts(cleaned), ["喜欢一个人孤独的时刻"]);
+});
+
 test("角色词只是前缀时保留歌词", () => {
   const cleaned = stripLyricMetadata([
     line("词汇：还没到"),
