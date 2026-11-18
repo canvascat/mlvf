@@ -37,6 +37,12 @@ Style Remotion markup with the `style` prop. Studio edits inline style objects, 
 - Library DOM nodes get the same declarations via `element.style`.
 - A CSS variable a library reads can live on `style`, for example `"--amll-lp-font-size"`.
 
+# 长时间导出和投稿
+
+导出、串行批量导出、投稿脚本要在 Cursor 内置终端里前台跑。不要 `nohup`、`disown`，也不要在命令末尾加 `&`。
+
+终端会话一结束，渲染用的 Chrome 会一起退出，成片停在半路，日志里只剩 `Target closed`。输出留在这个终端里，不要只重定向到日志文件再把进程丢掉。
+
 # biliup 投稿
 
 用 biliup 投稿，或用同一套登录态调用 `member.bilibili.com` 的合集接口时，写操作要留间隔。下一条请求等上一条成功后再发，不要并行，也不要在失败后立刻重试。

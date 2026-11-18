@@ -69,6 +69,7 @@ nub run album-preview -- "预处理/<源目录名>"
 
 - 不传 `--concurrency`。默认 1 路。大于 1 时，歌词播放器靠 `requestAnimationFrame` 的时间差推进，多标签同时截帧，成片会闪。
 - 同一时间只跑一个 `nub run export`。导出前先看终端，已有导出就不要再开。
+- 在 Cursor 内置终端里前台跑。不要 `nohup`、`disown`，也不要在命令末尾加 `&`。会话结束会把渲染用的 Chrome 一起收掉，日志里只剩 `Target closed`。
 - 用 `&&` 串成一条命令。前一首成功才开始下一首，某一首失败则停住。
 - 不要加 `--album`。
 
