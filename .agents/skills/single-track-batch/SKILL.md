@@ -70,14 +70,11 @@ nub run album-preview -- "预处理/<源目录名>"
 - 不传 `--concurrency`。默认 1 路。大于 1 时，歌词播放器靠 `requestAnimationFrame` 的时间差推进，多标签同时截帧，成片会闪。
 - 同一时间只跑一个 `nub run export`。导出前先看终端，已有导出就不要再开。
 - 在 Cursor 内置终端里前台跑。不要 `nohup`、`disown`，也不要在命令末尾加 `&`。会话结束会把渲染用的 Chrome 一起收掉，日志里只剩 `Target closed`。
-- 用 `&&` 串成一条命令。前一首成功才开始下一首，某一首失败则停住。
-- 不要加 `--album`。
-
-```console
-mkdir -p "out/<源目录名>" && \
-nub run export -- "预处理/<源目录名>/01 歌名.json" --out "out/<源目录名>/<歌手>-<歌名>.mkv" && \
-nub run export -- "预处理/<源目录名>/02 歌名.json" --out "out/<源目录名>/<歌手>-<歌名>.mkv"
-```
+- 整张专辑导出用 `nub run release`，不要再手写 `&&` 串起来的 `nub run export`。
+- 全部导出完再投稿：`nub run release -- export-then-upload "预处理/<源目录名>"`。
+- 导出一首就入队，间隔够了就传：`nub run release -- export-and-upload "预处理/<源目录名>"`。
+- 只导出、先不传：`nub run release -- export "预处理/<源目录名>/<音频主名>.json"`。
+- 不要加 `--album`。已有成片默认跳过；用户要重导时加 `--overwrite-video`。
 
 `<歌手>` 和 `<歌名>` 用 json 里的 `artistName`、`songName`。已有成片且用户没说重导，就从缺的那首接着串。用户说画面有问题或要重导，再覆盖已有文件。
 

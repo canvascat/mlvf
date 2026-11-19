@@ -6,13 +6,13 @@ export type UploadDeps = {
   cookie: string;
   run: (command: string[]) => Promise<{ exitCode: number; output: string }>;
   sleep: (ms: number) => Promise<void>;
-  saveDraft: (item: QueueItem) => Promise<string>;
+  saveDraft: (item: QueueItem, output: string) => Promise<string>;
 };
 
 export async function uploadItem(
   item: QueueItem,
   deps: UploadDeps,
-): Promise<{ status: "done"; bvid: string } | { status: "draft"; fromId: string }> {
+): Promise<{ status: "done"; bvid: string } | { status: "draft"; fromId: string; draftId: string }> {
   let alreadyWaitedGap = false;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const result = await deps.run(commandFor(item, deps.cookie));
@@ -28,13 +28,12 @@ export async function uploadItem(
       continue;
     }
     if (kind === "draft" || kind === "retry") {
-      await deps.saveDraft(item);
-      return { status: "draft", fromId: item.id };
+      const draftId = await deps.saveDraft(item, result.output);
+      return { status: "draft", fromId: item.id, draftId };
     }
     throw new Error(`投稿失败 ${item.title}`);
   }
-  await deps.saveDraft(item);
-  return { status: "draft", fromId: item.id };
+  throw new Error(`投稿失败 ${item.title}`);
 }
 
 function commandFor(item: QueueItem, cookie: string): string[] {

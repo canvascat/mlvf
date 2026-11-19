@@ -39,7 +39,7 @@ Style Remotion markup with the `style` prop. Studio edits inline style objects, 
 
 # 长时间导出和投稿
 
-导出、串行批量导出、投稿脚本要在 Cursor 内置终端里前台跑。不要 `nohup`、`disown`，也不要在命令末尾加 `&`。
+导出、串行批量导出、投稿脚本要在 Cursor 内置终端里前台跑。不要 `nohup`、`disown`，也不要在命令末尾加 `&`。批量导出和投稿用 `nub run release`。
 
 终端会话一结束，渲染用的 Chrome 会一起退出，成片停在半路，日志里只剩 `Target closed`。输出留在这个终端里，不要只重定向到日志文件再把进程丢掉。
 
