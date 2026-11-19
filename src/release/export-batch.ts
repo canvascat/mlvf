@@ -52,7 +52,6 @@ function createdAt(): string {
 }
 
 export async function exportAndEnqueue(options: ExportBatchOptions): Promise<void> {
-  let queue = options.loadQueue();
   const ids = options.tracks.map((track) => releaseItemId(options.prepareDir, track.index));
   for (const track of options.tracks) {
     const video = path.join(options.outDir, `${track.artistName}-${track.songName}.mkv`);
@@ -65,6 +64,7 @@ export async function exportAndEnqueue(options: ExportBatchOptions): Promise<voi
     }
     const audio = await options.probe(track.audioPath);
     const blurb = readBlurb(options.readText(track.textPath));
+    let queue = options.loadQueue();
     const already = pendingOf(queue, ids).some((item) => item.upload.dynamic);
     const item: QueueItem = {
       id: releaseItemId(options.prepareDir, track.index),

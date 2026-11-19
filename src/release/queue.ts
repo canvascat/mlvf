@@ -65,12 +65,17 @@ export function upsertPending(queue: QueueFile, item: QueueItem): QueueFile {
   return { ...queue, items };
 }
 
-export function pendingOf(queue: QueueFile, ids: string[]): QueueItem[] {
+export function pendingOf(
+  queue: QueueFile,
+  ids: string[],
+  uploadedVideos?: ReadonlySet<string>,
+): QueueItem[] {
   const pending = new Map(
     queue.items.filter((item) => item.status === "pending").map((item) => [item.id, item]),
   );
   return ids.flatMap((id) => {
     const item = pending.get(id);
-    return item ? [item] : [];
+    if (!item || uploadedVideos?.has(item.video)) return [];
+    return [item];
   });
 }

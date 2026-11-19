@@ -19,4 +19,6 @@ test("同一成片的 pending 被更新，done 不重置", () => {
   const done = upsertPending({ ...again, items: [{ ...again.items[0]!, status: "done" }] }, next);
   assert.equal(done.items[0]?.status, "done");
   assert.deepEqual(pendingOf(again, [id, "other"]).map((item) => item.id), [id]);
+  const uploaded = new Set(["/out/a.mkv"]);
+  assert.deepEqual(pendingOf(again, [id], uploaded).map((item) => item.id), []);
 });

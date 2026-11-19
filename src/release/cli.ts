@@ -248,23 +248,32 @@ async function addToSeason(item: QueueItem, bvid: string): Promise<boolean> {
   return false;
 }
 
-async function uploadById(id: string): Promise<void> {
+function patchQueueItem(id: string, update: (item: QueueItem) => void): QueueItem | undefined {
+  const queue = JSON.parse(readFileSync(queuePath, "utf8")) as QueueFile;
+  const item = queue.items.find((entry) => entry.id === id);
+  if (!item) return;
+  update(item);
+  writeFileSync(queuePath, JSON.stringify(queue, null, 2) + "\n");
+  return item;
+}
+
+async function uploadById(id: string, uploaded: Set<string>): Promise<"uploaded" | "skipped"> {
   const queue = await loadQueue();
   const item = queue.items.find((entry) => entry.id === id || entry.video === id);
   if (!item || item.status !== "pending") throw new Error(`找不到待投稿 ${id}`);
+  if (uploaded.has(item.video)) return "skipped";
   const result = await uploadItem(item, {
     cookie: cookiePath,
     run: runCommand,
     sleep,
     saveDraft,
   });
-  const fresh = await loadQueue();
-  const current = fresh.items.find((entry) => entry.id === item.id);
-  if (!current) return;
+  uploaded.add(item.video);
   if (result.status === "draft") {
-    current.status = "draft";
-    current.draft_id = result.draftId;
-    await saveQueue(fresh);
+    patchQueueItem(item.id, (current) => {
+      current.status = "draft";
+      current.draft_id = result.draftId;
+    });
     throw new Error(`投稿过于频繁，已从 ${item.title} 停止`);
   }
   if (item.mode === "overwrite" && item.bvid) {
@@ -274,14 +283,17 @@ async function uploadById(id: string): Promise<void> {
       console.error(error instanceof Error ? error.message : error);
     }
   }
-  current.status = "done";
-  current.bvid = result.bvid;
-  current.finished = new Date().toISOString();
-  current.season_added = false;
-  await saveQueue(fresh);
-  current.season_added = await addToSeason(current, result.bvid);
-  await saveQueue(fresh);
+  const current = patchQueueItem(item.id, (entry) => {
+    entry.status = "done";
+    entry.bvid = result.bvid;
+    entry.finished = new Date().toISOString();
+    entry.season_added = false;
+  });
+  if (!current) return "uploaded";
+  const added = await addToSeason(current, result.bvid);
+  patchQueueItem(item.id, (entry) => { entry.season_added = added; });
   console.log(`投稿完成 ${current.title} ${result.bvid}`);
+  return "uploaded";
 }
 
 async function runBatch(mode: "then" | "and", prepareDir: string, overwriteVideo: boolean) {
@@ -300,10 +312,11 @@ async function runBatch(mode: "then" | "and", prepareDir: string, overwriteVideo
   let uploadChain = Promise.resolve();
   let stopped = false;
   let uploadError: unknown;
+  const uploaded = new Set<string>();
   const refresh = async () => {
     const queue = await loadQueue();
     state.now = Date.now();
-    state.pendingReady = pendingOf(queue, ids)
+    state.pendingReady = pendingOf(queue, ids, uploaded)
       .filter((item) => existsSync(item.video))
       .map((item) => item.id);
   };
@@ -319,8 +332,8 @@ async function runBatch(mode: "then" | "and", prepareDir: string, overwriteVideo
         }
         state.uploading = true;
         try {
-          await uploadById(decision.id);
-          state.lastUploadOkAt = Date.now();
+          const outcome = await uploadById(decision.id, uploaded);
+          if (outcome === "uploaded") state.lastUploadOkAt = Date.now();
         } catch (error) {
           stopped = true;
           throw error;
@@ -391,7 +404,7 @@ export async function main(argv: string[]): Promise<void> {
     await assertNoOtherUpload();
   }
   if (args.command === "upload") {
-    await uploadById(args.target);
+    await uploadById(args.target, new Set());
     return;
   }
   if (args.command === "season") {
