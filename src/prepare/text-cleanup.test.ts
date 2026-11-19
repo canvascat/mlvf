@@ -17,6 +17,7 @@ test("Latin-1 读出的 GBK 还原成汉字", () => {
 test("没有假名的繁体转成简体，日文歌词保持原文", () => {
   assert.equal(prepareDisplayText("織田哲郎"), "织田哲郎");
   assert.equal(prepareDisplayText("這是繁體歌詞"), "这是繁体歌词");
+  assert.equal(prepareDisplayText("心疼妳的过去"), "心疼你的过去");
   assert.equal(prepareDisplayText("負けないで"), "負けないで");
   assert.equal(
     prepareDisplayText("ZARD BEST The Single Collection ～軌跡～"),
