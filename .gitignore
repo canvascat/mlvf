@@ -7,5 +7,8 @@ dist
 # Ignore the output video from Git but not videos you import into src/.
 out
 tmp
+
+# 预览会整文件重写。没有这个文件时，lint / build 会写成 null 占位。
+src/helpers/studio-preview.generated.ts
 预处理
 input
