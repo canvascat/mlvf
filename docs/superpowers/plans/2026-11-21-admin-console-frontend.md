@@ -62,7 +62,7 @@ admin/app/
 - [ ] **Step 1: 安装依赖**
 
 ```console
-nub add @tanstack/react-start @tanstack/react-router @tanstack/react-query @tanstack/react-table @trpc/client@11.29.5 @trpc/tanstack-react-query@11.29.5 lucide-react
+nub add @tanstack/react-start @tanstack/react-router @tanstack/react-query @tanstack/react-table@8 @trpc/client@11.29.5 @trpc/tanstack-react-query@11.29.5 lucide-react
 nub add -D vite @vitejs/plugin-react tailwindcss @tailwindcss/vite @types/react-dom
 ```
 
