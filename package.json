@@ -5,7 +5,7 @@
 	"private": true,
 	"license": "GPL-3.0",
 	"engines": {
-		"node": ">=24 <25"
+		"node": ">=26 <27"
 	},
 	"dependencies": {
 		"@applemusic-like-lyrics/core": "^0.6.0",
@@ -33,7 +33,7 @@
 	},
 	"devDependencies": {
 		"@types/chroma-js": "^3.1.2",
-		"@types/node": "24",
+		"@types/node": "26",
 		"@types/react": "19.2.7",
 		"@types/web": "0.0.166",
 		"eslint": "9.19.0",
