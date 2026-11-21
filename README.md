@@ -232,6 +232,7 @@ nub run admin:db       # 改了 admin/server/db/schema.ts 后生成迁移
 - 任务可以声明依赖：专辑批量会建出「导出 → 抽封面 → 投稿 → 加入合集」的链，上一步失败，后面的自动取消并标明原因。
 - 重试会新建一个任务，原来的失败记录保留。
 - 空闲调度：本地时间 00:00–05:59，或屏幕连续锁定满 10 分钟（可在设置里改），runner 才会自动发布草稿和传队列里的 `pending`；在投稿页点「立即上传」时不等空闲。规则的完整说明在 [`AGENTS.md`](AGENTS.md)。
+- 路径输入框（备料的音频、设置里的 `biliup` / `ffmpeg`）旁有「选择文件」按钮，会在运行服务的这台 Mac 上弹出系统原生选择框并填入绝对路径；取消不改原值。浏览器自带的选择器拿不到绝对路径，所以走服务端。只支持 macOS，其他系统直接粘贴路径。
 - 日志里的 cookie、token 等敏感字段会被抹掉。
 
 设计和实现计划：[`docs/superpowers/specs/2026-11-21-admin-console-design.md`](docs/superpowers/specs/2026-11-21-admin-console-design.md)、[`docs/superpowers/plans/`](docs/superpowers/plans/)。

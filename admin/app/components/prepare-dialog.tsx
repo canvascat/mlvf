@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PathInput } from "@/components/path-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTRPC } from "@/lib/trpc";
 
@@ -43,7 +44,7 @@ export function PrepareDialog() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="audio">音频或 CUE 的绝对路径</Label>
-            <Input id="audio" value={audio} onChange={(e) => setAudio(e.target.value)} placeholder="/Users/…/半岛铁盒.flac" />
+            <PathInput id="audio" kind="file" value={audio} onChange={setAudio} placeholder="/Users/…/半岛铁盒.flac" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5"><Label>歌名（可选）</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>

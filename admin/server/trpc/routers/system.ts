@@ -1,7 +1,10 @@
 import { readFile, statfs } from "node:fs/promises";
 import path from "node:path";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import { cookiePath, runCommand } from "../../../../src/release/io";
 import { defaultDbFile } from "../../db/client";
+import { pickPath } from "../../pick-path";
 import { getSettings } from "../../settings";
 import { publicProcedure, router } from "../init";
 
@@ -54,4 +57,19 @@ export const systemRouter = router({
       dbFile: defaultDbFile(),
     };
   }),
+
+  /** 在运行服务的这台 Mac 上弹出原生选择框（浏览器自带的选择器拿不到绝对路径）。 */
+  pickPath: publicProcedure
+    .input(z.object({ kind: z.enum(["file", "folder"]), current: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      try {
+        const picked = await pickPath({ platform: process.platform, run: runCommand }, input);
+        return { path: picked };
+      } catch (error) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }),
 });
