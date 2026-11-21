@@ -84,8 +84,7 @@ function Jobs() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">任务</h1>
+      <div className="flex items-center justify-end gap-2">
         <div className="flex gap-2">
           <Select value={search.status ?? "all"} onValueChange={(value) => { setBefore(undefined); void navigate({ search: (prev) => ({ ...prev, status: value === "all" ? undefined : (value as Status) }) }); }}>
             <SelectTrigger className="w-36"><SelectValue placeholder="状态" /></SelectTrigger>

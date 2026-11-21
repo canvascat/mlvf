@@ -92,8 +92,7 @@ function Library() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">曲库</h1>
+      <div className="flex items-center justify-end gap-2">
         <PrepareDialog />
       </div>
       <Tabs defaultValue="albums">
