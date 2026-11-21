@@ -10,11 +10,48 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HistoryRouteImport } from './routes/history'
+import { Route as ReleasesRouteImport } from './routes/releases'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as JobsIndexRouteImport } from './routes/jobs.index'
+import { Route as JobsIdRouteImport } from './routes/jobs.$id'
+import { Route as LibraryIndexRouteImport } from './routes/library.index'
 import { Route as ApiTrpcSplatRouteImport } from './routes/api/trpc.$'
+import { Route as LibraryAlbumsIdRouteImport } from './routes/library.albums.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReleasesRoute = ReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsIndexRoute = JobsIndexRouteImport.update({
+  id: '/jobs/',
+  path: '/jobs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsIdRoute = JobsIdRouteImport.update({
+  id: '/jobs/$id',
+  path: '/jobs/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryIndexRoute = LibraryIndexRouteImport.update({
+  id: '/library/',
+  path: '/library/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
@@ -22,31 +59,92 @@ const ApiTrpcSplatRoute = ApiTrpcSplatRouteImport.update({
   path: '/api/trpc/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LibraryAlbumsIdRoute = LibraryAlbumsIdRouteImport.update({
+  id: '/library/albums/$id',
+  path: '/library/albums/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
+  '/releases': typeof ReleasesRoute
+  '/settings': typeof SettingsRoute
+  '/jobs/$id': typeof JobsIdRoute
+  '/jobs/': typeof JobsIndexRoute
+  '/library/': typeof LibraryIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
+  '/library/albums/$id': typeof LibraryAlbumsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
+  '/releases': typeof ReleasesRoute
+  '/settings': typeof SettingsRoute
+  '/jobs/$id': typeof JobsIdRoute
+  '/jobs': typeof JobsIndexRoute
+  '/library': typeof LibraryIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
+  '/library/albums/$id': typeof LibraryAlbumsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
+  '/releases': typeof ReleasesRoute
+  '/settings': typeof SettingsRoute
+  '/jobs/$id': typeof JobsIdRoute
+  '/jobs/': typeof JobsIndexRoute
+  '/library/': typeof LibraryIndexRoute
   '/api/trpc/$': typeof ApiTrpcSplatRoute
+  '/library/albums/$id': typeof LibraryAlbumsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/trpc/$'
+  fullPaths:
+    | '/'
+    | '/history'
+    | '/releases'
+    | '/settings'
+    | '/jobs/$id'
+    | '/jobs/'
+    | '/library/'
+    | '/api/trpc/$'
+    | '/library/albums/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/trpc/$'
-  id: '__root__' | '/' | '/api/trpc/$'
+  to:
+    | '/'
+    | '/history'
+    | '/releases'
+    | '/settings'
+    | '/jobs/$id'
+    | '/jobs'
+    | '/library'
+    | '/api/trpc/$'
+    | '/library/albums/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/history'
+    | '/releases'
+    | '/settings'
+    | '/jobs/$id'
+    | '/jobs/'
+    | '/library/'
+    | '/api/trpc/$'
+    | '/library/albums/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HistoryRoute: typeof HistoryRoute
+  ReleasesRoute: typeof ReleasesRoute
+  SettingsRoute: typeof SettingsRoute
+  JobsIdRoute: typeof JobsIdRoute
+  JobsIndexRoute: typeof JobsIndexRoute
+  LibraryIndexRoute: typeof LibraryIndexRoute
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
+  LibraryAlbumsIdRoute: typeof LibraryAlbumsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +156,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/releases': {
+      id: '/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof ReleasesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs/': {
+      id: '/jobs/'
+      path: '/jobs'
+      fullPath: '/jobs/'
+      preLoaderRoute: typeof JobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs/$id': {
+      id: '/jobs/$id'
+      path: '/jobs/$id'
+      fullPath: '/jobs/$id'
+      preLoaderRoute: typeof JobsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/': {
+      id: '/library/'
+      path: '/library'
+      fullPath: '/library/'
+      preLoaderRoute: typeof LibraryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/trpc/$': {
       id: '/api/trpc/$'
       path: '/api/trpc/$'
@@ -65,12 +205,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTrpcSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/library/albums/$id': {
+      id: '/library/albums/$id'
+      path: '/library/albums/$id'
+      fullPath: '/library/albums/$id'
+      preLoaderRoute: typeof LibraryAlbumsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HistoryRoute: HistoryRoute,
+  ReleasesRoute: ReleasesRoute,
+  SettingsRoute: SettingsRoute,
+  JobsIdRoute: JobsIdRoute,
+  JobsIndexRoute: JobsIndexRoute,
+  LibraryIndexRoute: LibraryIndexRoute,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
+  LibraryAlbumsIdRoute: LibraryAlbumsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
