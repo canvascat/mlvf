@@ -5,6 +5,7 @@ import path from "node:path";
 import type { AlbumCompositionProps } from "../helpers/schema";
 import { trackPlayableSeconds } from "../helpers/track-duration";
 import { applyProjectTmp, withProjectTmpEnv } from "../lib/project-tmp";
+import { streamCommand } from "../lib/process";
 import {
   ALBUM_COMPOSITION_ID,
   COMPOSITION_ID,
@@ -54,7 +55,25 @@ function remotionBin(): string {
   return path.join(projectRoot(), "node_modules", ".bin", "remotion");
 }
 
-function runRemotion(args: string[], tmpDir: string): Promise<void> {
+export type ExportRuntime = {
+  /** 每一行输出（Remotion 的进度行、本文件自己的提示行）。 */
+  onLog?: (line: string, stream: "stdout" | "stderr") => void;
+  /** 取消信号：中止后结束 Remotion 子进程并抛出「已取消」。 */
+  signal?: AbortSignal;
+};
+
+function runRemotion(args: string[], tmpDir: string, runtime?: ExportRuntime): Promise<void> {
+  if (runtime?.onLog || runtime?.signal) {
+    return streamCommand([remotionBin(), ...args], {
+      cwd: projectRoot(),
+      env: withProjectTmpEnv(tmpDir),
+      signal: runtime.signal,
+      onLine: runtime.onLog,
+    }).then((result) => {
+      if (result.aborted) throw new Error("已取消");
+      if (result.exitCode !== 0) throw new Error(`Remotion 退出码 ${result.exitCode}`);
+    });
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(remotionBin(), args, {
       stdio: "inherit",
@@ -241,7 +260,11 @@ async function writeAlbumChapterSidecar(
   console.log(`已写出章节 ${sidecarPath}`);
 }
 
-export async function exportVideo(args: ExportArgs): Promise<string> {
+export async function exportVideo(args: ExportArgs, runtime?: ExportRuntime): Promise<string> {
+  const log = (line: string) => {
+    if (runtime?.onLog) runtime.onLog(line, "stdout");
+    else console.log(line);
+  };
   await stopRemotionStudioBeforeExport();
   const tmpDir = await applyProjectTmp();
   const job = await prepareExportJob(args);
@@ -264,7 +287,7 @@ export async function exportVideo(args: ExportArgs): Promise<string> {
       });
     } else {
       await writeFile(propsPath, JSON.stringify(job.inputProps));
-      console.log(
+      log(
         `正在渲染无声画面：《${trackLabel(job)}》（${job.durationInFrames} 帧，${compositionId}，concurrency=${args.concurrency}）`,
       );
       await runRemotion(
@@ -276,7 +299,9 @@ export async function exportVideo(args: ExportArgs): Promise<string> {
           propsPath,
         }),
         tmpDir,
+        runtime,
       );
+      runtime?.signal?.throwIfAborted();
     }
 
     let audio = job.sourceAudios[0];
@@ -284,7 +309,7 @@ export async function exportVideo(args: ExportArgs): Promise<string> {
       throw new Error("没有可合成的音轨");
     }
     if (job.sourceAudios.length > 1) {
-      console.log("正在拼接原音轨…");
+      log("正在拼接原音轨…");
       const playlistPath = path.join(workDir, "playlist.flac");
       await concatAudioToFlac(job.sourceAudios, playlistPath);
       audio = {
@@ -294,11 +319,12 @@ export async function exportVideo(args: ExportArgs): Promise<string> {
       };
     }
 
-    console.log(
+    log(
       job.sourceAudios.length > 1
         ? "正在合成拼接后的音轨…"
         : "正在无损合成原音轨…",
     );
+    runtime?.signal?.throwIfAborted();
     await muxOriginalAudio(silentVideoPath, audio, outputLocation);
 
     if (args.album) {
