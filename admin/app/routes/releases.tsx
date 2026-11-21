@@ -110,8 +110,7 @@ function Releases() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">投稿</h1>
+      <div className="flex items-center justify-end gap-2">
         <div className="text-sm">
           草稿箱：{draftBox.data?.ok
             ? <Badge variant={draftBox.data.used >= draftBox.data.capacity ? "destructive" : "secondary"}>{draftBox.data.used} / {draftBox.data.capacity}</Badge>

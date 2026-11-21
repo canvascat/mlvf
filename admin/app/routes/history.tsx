@@ -46,7 +46,6 @@ function History() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">历史</h1>
       <Card>
         <CardHeader><CardTitle>近 30 天</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">

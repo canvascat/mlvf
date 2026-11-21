@@ -72,8 +72,7 @@ function SettingsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">设置</h1>
+      <div className="flex items-center justify-end gap-2">
         <div className="flex gap-2">
           <ConfirmButton
             variant="outline" title="全部恢复默认？"

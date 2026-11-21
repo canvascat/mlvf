@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { SectionCards } from "@/components/section-cards";
 import { ProgressCell } from "@/components/progress-cell";
 import { JobStatusBadge } from "@/components/status";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -33,7 +34,6 @@ function Overview() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold">总览</h1>
       {data.warnings.map((warning) => (
         <Alert key={warning.key}>
           <AlertTitle>{warning.key}</AlertTitle>
@@ -48,48 +48,42 @@ function Overview() {
           </AlertDescription>
         </Alert>
       )}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader><CardTitle>runner</CardTitle></CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <Row label="状态">
-              <Badge variant={data.runner.online ? "secondary" : "destructive"}>
-                {data.runner.online ? "在线" : "离线"}
-              </Badge>
-            </Row>
-            <Row label="进程">{data.runner.pid ?? "—"}</Row>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>投稿节奏</CardTitle></CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <Row label="上次成功投稿">{formatTime(data.state.lastUploadOkAt)}</Row>
-            <Row label="下一次最早">{nextUploadAt != null && nextUploadAt > data.now ? formatTime(nextUploadAt) : "现在可以"}</Row>
-            <Row label="暂停到">{held ? formatTime(data.state.holdUntil) : "—"}</Row>
-            <Row label="锁屏起点">{formatTime(data.state.lockedSince)}</Row>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>任务</CardTitle></CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {["queued", "running", "failed", "interrupted"].map((status) => (
-              <Row key={status} label={status === "queued" ? "排队中" : status === "running" ? "运行中" : status === "failed" ? "失败" : "已中断"}>
-                <Link to="/jobs" search={{ status: status as "queued" | "running" | "failed" | "interrupted" }} className="tabular-nums underline-offset-4 hover:underline">
-                  {data.jobCounts[status] ?? 0}
-                </Link>
-              </Row>
-            ))}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>成片</CardTitle></CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <Row label="待投稿">{data.releaseCounts.pending ?? 0}</Row>
-            <Row label="草稿">{data.releaseCounts.draft ?? 0}</Row>
-            <Row label="已投稿">{data.releaseCounts.done ?? 0}</Row>
-          </CardContent>
-        </Card>
-      </div>
+      <SectionCards
+        cards={[
+          {
+            label: "运行中的任务",
+            value: data.jobCounts.running ?? 0,
+            badge: `排队 ${data.jobCounts.queued ?? 0}`,
+            headline: (
+              <Link to="/jobs" search={{ status: "failed" }} className="hover:underline">
+                失败 {data.jobCounts.failed ?? 0} · 中断 {data.jobCounts.interrupted ?? 0}
+              </Link>
+            ),
+            detail: "渲染和投稿各占一条车道",
+          },
+          {
+            label: "待投稿",
+            value: data.releaseCounts.pending ?? 0,
+            badge: `草稿 ${data.releaseCounts.draft ?? 0}`,
+            headline: `已投稿 ${data.releaseCounts.done ?? 0}`,
+            detail: "成片入队后在这里等待空闲上传",
+          },
+          {
+            label: "下一次最早投稿",
+            value: nextUploadAt != null && nextUploadAt > data.now ? formatTime(nextUploadAt).slice(5, 16) : "现在可以",
+            badge: held ? "已暂停" : undefined,
+            headline: `上次成功：${formatTime(data.state.lastUploadOkAt)}`,
+            detail: held ? `暂停到 ${formatTime(data.state.holdUntil)}` : `锁屏起点：${formatTime(data.state.lockedSince)}`,
+          },
+          {
+            label: "runner",
+            value: data.runner.online ? "在线" : "离线",
+            badge: data.runner.pid != null ? `pid ${data.runner.pid}` : undefined,
+            headline: data.runner.online ? "正在轮询任务" : "任务会一直排队",
+            detail: "nub run admin 同时启动 web 和 runner",
+          },
+        ]}
+      />
 
       <Card>
         <CardHeader>
