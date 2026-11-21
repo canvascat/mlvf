@@ -1,4 +1,5 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/app-shell";
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 
@@ -11,7 +12,7 @@ export const Route = createRootRoute({
     <html lang="zh-CN">
       <head><HeadContent /></head>
       <body>
-        <Outlet />
+        <AppShell />
         <Toaster richColors />
         <Scripts />
       </body>
