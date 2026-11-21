@@ -179,12 +179,74 @@ nub src/export/cli.ts --config <配置.json>
 - `src/Album/`：整轨画面
 - `src/Playlist/`：歌单海报墙
 
-## 其他命令
+## 发布 CLI（release）
+
+把备料目录（`预处理/<专辑目录名>/`）里的单曲串行导出、抽封面、入队、建合集、投稿收成一条命令。前台在当前终端里跑，不要 `nohup`、`&`；终端一关，渲染用的 Chrome 会跟着退出。
 
 ```console
-nub run lint
+nub run release -- export <配置.json>             # 导出一首，抽封面并入队，不投稿
+nub run release -- upload <队列 id 或成片路径>      # 只投稿指定的一条
+nub run release -- season <备料目录>               # 只给这张专辑建合集小节并写入队列条目
+nub run release -- export-then-upload <备料目录>   # 全部导出完，再按曲序逐条投稿
+nub run release -- export-and-upload <备料目录>    # 导出一首入队一首，投稿间隔允许时马上传
+```
+
+- 加 `--overwrite-video` 才会覆盖已有的成片 mkv；默认跳过已导出的歌，仍补封面和队列条目。
+- 曲序读音频的 `track` 标签，没有就按 json 文件名排序。导出始终 1 路，投稿同一时间只有 1 首。
+- 两首投稿之间至少隔 180 秒，遇到「投稿过于频繁」按 [`AGENTS.md`](AGENTS.md) 的规则改存草稿；有歌词时封面取歌词里最有代表性的一句，否则取第 2 秒。
+- 动态只给曲序第一首，写明是整张专辑。
+- 批量命令只处理这张专辑本次入队的条目，不会碰队列里其他专辑的 `pending`。
+
+投稿队列存在 SQLite（默认 `data/rmv.db`，`RMV_DB` 环境变量可改），CLI、runner 和管理后台共用同一份。第一次启动时会把旧的 `tmp/upload-queue.json` 导入并改名为 `.imported`。设计见 [`docs/superpowers/specs/2026-11-19-release-cli-design.md`](docs/superpowers/specs/2026-11-19-release-cli-design.md)。
+
+## 管理后台
+
+本机的管理界面，用来备料、导出、投稿和看历史，不用再手敲上面的命令。只监听 `127.0.0.1:3100`，没有登录。
+
+```console
+nub run admin
+```
+
+一条命令同时启动 runner（执行任务）和 web（界面），日志带 `[runner]` / `[web]` 前缀，Ctrl-C 一起停；停的时候在跑的任务会标为中断，下次可在界面里重试。浏览器打开 <http://127.0.0.1:3100>。也可以分开跑：
+
+```console
+nub run admin:runner   # 只跑 runner（同一时间只允许一个，重复启动会退出）
+nub run admin:web      # 只跑 web
+nub run admin:db       # 改了 admin/server/db/schema.ts 后生成迁移
+```
+
+页面：
+
+| 页面 | 作用 |
+| --- | --- |
+| 总览 | 队列和任务统计、正在运行的任务、环境检查（runner 在线、B 站登录态、biliup / ffmpeg 路径） |
+| 曲库 | 登记 `预处理/` 下的专辑和单曲；备料、导出（逐首或整张，可选「导出后投稿」「边导出边投稿」）、封面、建合集、投稿；有进度和实时日志 |
+| 任务 | 所有任务，按状态筛选；取消、重试、查看日志；失败会连带取消依赖它的后续任务 |
+| 投稿 | 待投稿 / 草稿 / 已投稿三个标签；可立即上传选中的条目、发布草稿，并显示草稿箱余量和 `hold_until` 暂停提示 |
+| 历史 | 已完成的投稿记录 |
+| 设置 | 并行数、投稿间隔、重试等待、空闲时段、草稿容量、`biliup` / `ffmpeg` 路径 |
+
+任务模型：
+
+- 任务分两条通道，互不阻塞：`render`（备料、导出、抽封面）和 `bili`（建合集、投稿、发布草稿）。通道内按并行数限制，默认各 1 个。
+- 任务可以声明依赖：专辑批量会建出「导出 → 抽封面 → 投稿 → 加入合集」的链，上一步失败，后面的自动取消并标明原因。
+- 重试会新建一个任务，原来的失败记录保留。
+- 空闲调度：本地时间 00:00–05:59，或屏幕连续锁定满 10 分钟（可在设置里改），runner 才会自动发布草稿和传队列里的 `pending`；在投稿页点「立即上传」时不等空闲。规则的完整说明在 [`AGENTS.md`](AGENTS.md)。
+- 日志里的 cookie、token 等敏感字段会被抹掉。
+
+设计和实现计划：[`docs/superpowers/specs/2026-11-21-admin-console-design.md`](docs/superpowers/specs/2026-11-21-admin-console-design.md)、[`docs/superpowers/plans/`](docs/superpowers/plans/)。
+
+## 开发和校验
+
+```console
+nub run lint        # eslint src + tsc + tsc -p admin
+node --import ./scripts/register-ts.mjs --test <文件.test.ts>   # 单个测试
 nubx remotion upgrade
 ```
+
+- 技术栈（管理后台）：TanStack Start / Router / Query / Table、shadcn/ui（Tailwind v4）、tRPC、Drizzle ORM + `node:sqlite`。
+- `admin/app/` 前端，`admin/server/` 后端、runner 和数据库，`src/release/` 是 release CLI 和投稿逻辑。
+- TypeScript 暂时钉在 5.9，等 typescript-eslint 支持 7 再升。
 
 ## Docs
 
