@@ -31,7 +31,7 @@ TanStack Start 在 `vite dev` 启动和路由文件变化时重新生成 `admin/
 ## File Structure
 
 ```text
-vite.config.ts
+vite.config.mts
 components.json                    shadcn 生成
 admin/app/
   router.tsx                       路由 + tRPC/Query 客户端
@@ -56,7 +56,7 @@ admin/app/
 ## Task 1: Start 脚手架与 tRPC 接入
 
 **Files:**
-- Create: `vite.config.ts`, `admin/app/router.tsx`, `admin/app/lib/trpc.ts`, `admin/app/routes/__root.tsx`, `admin/app/routes/index.tsx`, `admin/app/routes/api/trpc.$.ts`
+- Create: `vite.config.mts`, `admin/app/router.tsx`, `admin/app/lib/trpc.ts`, `admin/app/routes/__root.tsx`, `admin/app/routes/index.tsx`, `admin/app/routes/api/trpc.$.ts`
 - Modify: `package.json`, `admin/tsconfig.json`
 
 - [ ] **Step 1: 安装依赖**
@@ -68,7 +68,7 @@ nub add -D vite @vitejs/plugin-react tailwindcss @tailwindcss/vite @types/react-
 
 Expected: 安装成功；`react`、`react-dom` 版本不变（仍是 19.2.3）。如果 peer 依赖提示要求更高的 React，停下来问用户，不要自行升级。
 
-- [ ] **Step 2: `vite.config.ts`**
+- [ ] **Step 2: `vite.config.mts`**
 
 ```ts
 import tailwindcss from "@tailwindcss/vite";
@@ -89,7 +89,7 @@ export default defineConfig({
 {
   "extends": "../tsconfig.json",
   "compilerOptions": { "types": ["node", "vite/client"] },
-  "include": ["./**/*", "../vite.config.ts", "../drizzle.config.ts"],
+  "include": ["./**/*", "../vite.config.mts", "../drizzle.config.ts"],
   "exclude": ["./**/node_modules"]
 }
 ```
@@ -218,7 +218,7 @@ Expected: 无输出。
 - [ ] **Step 9: Commit**
 
 ```console
-git add package.json nub.lock vite.config.ts admin/tsconfig.json admin/app
+git add package.json nub.lock vite.config.mts admin/tsconfig.json admin/app
 git commit -m ":sparkles: feat(admin): 接入 TanStack Start 和 tRPC，提供 /api/trpc"
 ```
 
