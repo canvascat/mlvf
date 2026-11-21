@@ -15,7 +15,7 @@ Music Lyrics Video Factory。用 Remotion 做 1920×1080 的歌词视频，Studi
 nub install
 ```
 
-项目钉在 Node 24 LTS（`.node-version`）。用 `nub` 跑脚本会自动用这个版本，避免 PATH 上的 Node 22 / 26 混用。
+项目钉在 Node 26 LTS（`.node-version`）。用 `nub` 跑脚本会自动用这个版本，避免 PATH 上的其他 Node 版本混用。
 
 系统需要能调用 `ffmpeg`（没有的话会回退到 `nubx remotion ffmpeg`）。WebGL 背景建议本机装有 Chrome。
 
