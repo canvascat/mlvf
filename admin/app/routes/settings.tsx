@@ -7,13 +7,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PathInput } from "@/components/path-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTRPC } from "@/lib/trpc";
 
 export const Route = createFileRoute("/settings")({ component: SettingsPage });
 
-type Field = { key: string; label: string; hint?: string; kind: "number" | "text" | "bool" };
+type Field = { key: string; label: string; hint?: string; kind: "number" | "text" | "file" | "bool" };
 
 const GROUPS: { title: string; fields: Field[] }[] = [
   { title: "并行", fields: [
@@ -40,8 +41,8 @@ const GROUPS: { title: string; fields: Field[] }[] = [
   { title: "其他", fields: [
     { key: "draft.capacity", label: "草稿箱容量", kind: "number" },
     { key: "log.maxLinesPerJob", label: "每个任务最多保留的日志行数", kind: "number" },
-    { key: "bin.biliup", label: "biliup 可执行文件", kind: "text" },
-    { key: "bin.ffmpeg", label: "ffmpeg 可执行文件", kind: "text" },
+    { key: "bin.biliup", label: "biliup 可执行文件", kind: "file" },
+    { key: "bin.ffmpeg", label: "ffmpeg 可执行文件", kind: "file" },
   ] },
 ];
 
@@ -107,6 +108,14 @@ function SettingsPage() {
                   </div>
                   {field.kind === "bool" ? (
                     <Switch id={field.key} checked={value === true} onCheckedChange={(checked) => setDraft({ ...draft, [field.key]: checked })} />
+                  ) : field.kind === "file" ? (
+                    <PathInput
+                      id={field.key}
+                      kind="file"
+                      className="max-w-sm"
+                      value={String(value ?? "")}
+                      onChange={(next) => setDraft({ ...draft, [field.key]: next })}
+                    />
                   ) : (
                     <Input
                       id={field.key}
