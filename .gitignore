@@ -12,3 +12,7 @@ tmp
 src/helpers/studio-preview.generated.ts
 预处理
 input
+
+# 管理后台的数据库和 TanStack 缓存
+data
+.tanstack
