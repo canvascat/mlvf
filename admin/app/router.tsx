@@ -4,6 +4,7 @@ import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from
 import superjson from "superjson";
 import type { AppRouter } from "../server/router";
 import { TRPCProvider } from "./lib/trpc";
+import { NotFound } from "./components/not-found";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
@@ -23,6 +24,7 @@ export function getRouter() {
     routeTree,
     scrollRestoration: true,
     defaultPreload: "intent",
+    defaultNotFoundComponent: NotFound,
     Wrap: ({ children }) => (
       <QueryClientProvider client={queryClient}>
         <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
