@@ -100,7 +100,7 @@ Expected: `package.json` 出现这三个依赖和一个 devDependency；`nub.loc
     "noUnusedLocals": true,
     "paths": { "@/*": ["./admin/app/*"] }
   },
-  "exclude": ["remotion.config.ts", "admin", "vite.config.ts", "drizzle.config.ts"]
+  "exclude": ["remotion.config.ts", "admin", "vite.config.mts", "drizzle.config.ts"]
 }
 ```
 
@@ -110,7 +110,7 @@ Expected: `package.json` 出现这三个依赖和一个 devDependency；`nub.loc
 {
   "extends": "../tsconfig.json",
   "compilerOptions": { "types": ["node"] },
-  "include": ["./**/*", "../vite.config.ts", "../drizzle.config.ts"],
+  "include": ["./**/*", "../vite.config.mts", "../drizzle.config.ts"],
   "exclude": ["./**/node_modules"]
 }
 ```

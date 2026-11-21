@@ -14,5 +14,5 @@
 		"noUnusedLocals": true,
 		"paths": { "@/*": ["./admin/app/*"] }
 	},
-	"exclude": ["remotion.config.ts", "admin", "vite.config.ts", "drizzle.config.ts", "tmp"]
+	"exclude": ["remotion.config.ts", "admin", "vite.config.mts", "drizzle.config.ts", "tmp"]
 }
