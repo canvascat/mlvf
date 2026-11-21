@@ -73,6 +73,7 @@ export async function probeAudio(audio: string) {
     lossless,
     sampleRate: metadata.format.sampleRate ?? 0,
     bitsPerSample: metadata.format.bitsPerSample ?? 0,
+    durationSec: metadata.format.duration ?? null,
   };
 }
 

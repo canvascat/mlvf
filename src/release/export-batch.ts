@@ -54,7 +54,7 @@ function createdAt(): string {
 export async function exportAndEnqueue(options: ExportBatchOptions): Promise<void> {
   const ids = options.tracks.map((track) => releaseItemId(options.prepareDir, track.index));
   for (const track of options.tracks) {
-    const video = path.join(options.outDir, `${track.artistName}-${track.songName}.mkv`);
+    const video = videoPathFor(options.outDir, track.artistName, track.songName);
     const cover = video.replace(/\.mkv$/, ".jpg");
     if (options.overwriteVideo || !options.fileExists(video)) {
       await options.exportVideo(track.configPath, video);
@@ -88,4 +88,12 @@ export async function exportAndEnqueue(options: ExportBatchOptions): Promise<voi
     options.saveQueue(queue);
     options.onEnqueued(item.id);
   }
+}
+
+export function outDirFor(prepareDir: string, cwd: string = process.cwd()): string {
+  return path.join(cwd, "out", path.basename(prepareDir));
+}
+
+export function videoPathFor(outDir: string, artistName: string, songName: string): string {
+  return path.join(outDir, `${artistName}-${songName}.mkv`);
 }

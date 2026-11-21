@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exportAndEnqueue } from "./export-batch";
+import { exportAndEnqueue, outDirFor, videoPathFor } from "./export-batch";
 import { emptyQueue } from "./queue";
 
 test("已有成片跳过渲染，失败则停住后面的歌", async () => {
@@ -53,4 +53,9 @@ test("下一首入队时保留投稿工人刚写上的稿件号", async () => {
   assert.equal(queue.items[0]?.status, "done");
   assert.equal(queue.items[0]?.bvid, "BV1FMs862Ess");
   assert.equal(queue.items[1]?.status, "pending");
+});
+
+test("成片路径由备料目录名和歌手-歌名决定", () => {
+  assert.equal(outDirFor("/x/预处理/寻雾", "/proj"), "/proj/out/寻雾");
+  assert.equal(videoPathFor("/proj/out/寻雾", "许嵩", "叹服"), "/proj/out/寻雾/许嵩-叹服.mkv");
 });
